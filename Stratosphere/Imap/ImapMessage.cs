@@ -2,13 +2,29 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Linq;
 using System.Net.Mail;
+using System.Globalization;
+using System.IO;
+using System.Text;
 
 namespace Stratosphere.Imap
 {
     public sealed class ImapMessage
     {
+        public int Number { private set; get; }
+        public DateTime Timestamp { private set; get; }
+        public string Subject { private set; get; }
+        public MailAddress Sender { private set; get; }
+        public MailAddress From { private set; get; }
+        public MailAddress ReplyTo { private set; get; }
+        public IEnumerable<MailAddress> To { private set; get; }
+        public IEnumerable<MailAddress> Cc { private set; get; }
+        public IEnumerable<MailAddress> Bcc { private set; get; }
+        public string ID { private set; get; }
+        public IEnumerable<ImapBodyPart> BodyParts { private set; get; }
+
         internal ImapMessage(ImapList list)
         {
             int number;
@@ -27,9 +43,10 @@ namespace Stratosphere.Imap
             {
                 ImapList envelopeList = fetchList.GetListAt(envelopeIndex);
 
+                string timestampString = envelopeList.GetStringAt(0);
                 DateTime timestamp;
 
-                if (DateTime.TryParse(envelopeList.GetStringAt(0), out timestamp))
+                if (TryParseTimestamp(timestampString, out timestamp))
                 {
                     Timestamp = timestamp;
                 }
@@ -125,16 +142,73 @@ namespace Stratosphere.Imap
             }
         }
 
-        public int Number { private set; get; }
-        public DateTime Timestamp { private set; get; }
-        public string Subject { private set; get; }
-        public MailAddress Sender { private set; get; }
-        public MailAddress From { private set; get; }
-        public MailAddress ReplyTo { private set; get; }
-        public IEnumerable<MailAddress> To { private set; get; }
-        public IEnumerable<MailAddress> Cc { private set; get; }
-        public IEnumerable<MailAddress> Bcc { private set; get; }
-        public string ID { private set; get; }
-        public IEnumerable<ImapBodyPart> BodyParts { private set; get; }
+        private static bool TryParseTimestamp(string s, out DateTime timestamp)
+        {
+            if (!string.IsNullOrEmpty(s))
+            {
+                string[] parts = s.Split(' ');
+                string lastPart = parts[parts.Length - 1];
+
+                if (lastPart.StartsWith("("))
+                {
+                    StringBuilder b = new StringBuilder();
+
+                    for (int i = 0; i < parts.Length - 1; ++i)
+                    {
+                        if (b.Length != 0)
+                        {
+                            b.Append(' ');
+                        }
+
+                        b.Append(parts[i]);
+                    }
+
+                    s = b.ToString();
+                }
+                else
+                {
+                    string tz;
+
+                    if (__timezoneAbbreaviations.TryGetValue(lastPart, out tz))
+                    {
+                        StringBuilder b = new StringBuilder();
+
+                        for (int i = 0; i < parts.Length - 1; ++i)
+                        {
+                            b.Append(parts[i]);
+                            b.Append(' ');
+                        }
+
+                        b.Append(tz);
+                        s = b.ToString();
+                    }
+                }
+
+                return DateTime.TryParse(s, null, DateTimeStyles.AdjustToUniversal, out timestamp);
+            }
+
+            timestamp = DateTime.MinValue;
+            return false;
+        }
+
+        static ImapMessage()
+        {
+            using (StreamReader reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("Stratosphere.Imap.TZ.txt")))
+            {
+                string line;
+
+                while ((line = reader.ReadLine()) != null)
+                {
+                    string[] abbs = line.Split(' ');
+
+                    for (int i = 1; i < abbs.Length; ++i)
+                    {
+                        __timezoneAbbreaviations.Add(abbs[i], abbs[0]);
+                    }
+                }
+            }
+        }
+
+        private static Dictionary<string, string> __timezoneAbbreaviations = new Dictionary<string, string>();
     }
 }
