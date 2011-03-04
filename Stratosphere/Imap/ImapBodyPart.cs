@@ -18,8 +18,16 @@ namespace Stratosphere.Imap
             {
                 builder.AppendFormat(";{0}=\"{1}\"", paramsList.GetStringAt(i), paramsList.GetStringAt(i + 1));
             }
-
-            ContentType = new ContentType(builder.ToString());
+			
+			try
+			{
+            	ContentType = new ContentType(builder.ToString());
+			}
+			catch
+			{
+				ContentType = new ContentType();
+			}
+			
             ID = list.GetStringAt(3);
             Description = list.GetStringAt(4);
             Encoding = list.GetStringAt(5);
