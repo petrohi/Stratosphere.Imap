@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Stratosphere.Imap</RootNamespace>
-    <AssemblyName>SevenClouds.Imap</AssemblyName>
+    <AssemblyName>Stratosphere.Imap</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
