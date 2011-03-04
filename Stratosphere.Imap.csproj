@@ -53,4 +53,7 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <EmbeddedResource Include="TZ.txt" />
+  </ItemGroup>
 </Project>
