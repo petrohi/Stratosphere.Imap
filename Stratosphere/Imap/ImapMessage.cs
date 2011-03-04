@@ -91,17 +91,37 @@ namespace Stratosphere.Imap
             for (int i = 0; i < list.Count; i++)
             {
                 ImapList addressList = list.GetListAt(i);
-                string address = string.Format("{0}@{1}",
-                        addressList.GetStringAt(2), addressList.GetStringAt(3));
-
-                if (string.IsNullOrEmpty(addressList.GetStringAt(0)))
+				
+				string displayName = addressList.GetStringAt(0);
+				string user = addressList.GetStringAt(2);
+				string host = addressList.GetStringAt(3);
+				
+				if (!string.IsNullOrEmpty(user) &&
+				    !string.IsNullOrEmpty(host))
                 {
-                    yield return new MailAddress(address);
-                }
-                else
-                {
-                    yield return new MailAddress(address, addressList.GetStringAt(0));
-                }
+	                string addressString = string.Format("{0}@{1}",
+	                        user, host);
+	
+					MailAddress address = null;
+					
+					try
+					{
+		                if (string.IsNullOrEmpty(displayName))
+		                {
+		                    address = new MailAddress(addressString);
+		                }
+		                else
+		                {
+		                    address = new MailAddress(addressString, displayName);
+		                }
+					}
+					catch (FormatException) { }
+					
+					if (address != null)
+					{
+						yield return address;
+					}
+				}
             }
         }
 
