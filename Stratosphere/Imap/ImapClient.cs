@@ -212,11 +212,7 @@ namespace Stratosphere.Imap
                 throw new InvalidOperationException();
             }
 
-            if (string.IsNullOrEmpty(part.ContentType.CharSet))
-			{
-				return Encoding.ASCII.GetString(bytes);
-			}
-			else
+            if (bytes != null && part.ContentType.CharSet != null)
             {
                 try
                 {
