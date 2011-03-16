@@ -13,7 +13,8 @@ namespace Stratosphere.Imap
 {
     public sealed class ImapMessage
     {
-        public int Number { private set; get; }
+        public long Number { private set; get; }
+        public long Uid { private set; get; }
         public DateTime Timestamp { private set; get; }
         public string Subject { private set; get; }
         public MailAddress Sender { private set; get; }
@@ -25,23 +26,22 @@ namespace Stratosphere.Imap
         public string ID { private set; get; }
         public IEnumerable<ImapBodyPart> BodyParts { private set; get; }
 
-        internal ImapMessage(ImapList list)
+        internal ImapMessage(long number, ImapList list)
         {
-            int number;
+            Number = number;
 
-            if (int.TryParse(list.GetStringAt(1), out number))
+            int uidIndex = list.IndexOfString("UID");
+            int bodyIndex = list.IndexOfString("BODYSTRUCTURE");
+            int envelopeIndex = list.IndexOfString("ENVELOPE");
+
+            if (uidIndex != -1)
             {
-                Number = number;
+                Uid = long.Parse(list.GetStringAt(uidIndex + 1));
             }
 
-            ImapList fetchList = list.GetListAt(3);
-
-            int bodyIndex = fetchList.IndexOfString("BODYSTRUCTURE") + 1;
-            int envelopeIndex = fetchList.IndexOfString("ENVELOPE") + 1;
-
-            if (envelopeIndex != 0)
+            if (envelopeIndex != -1)
             {
-                ImapList envelopeList = fetchList.GetListAt(envelopeIndex);
+                ImapList envelopeList = list.GetListAt(envelopeIndex + 1);
 
                 string timestampString = envelopeList.GetStringAt(0);
                 DateTime timestamp;
@@ -61,9 +61,9 @@ namespace Stratosphere.Imap
                 ID = envelopeList.GetStringAt(8);
             }
 
-            if (bodyIndex != 0)
+            if (bodyIndex != -1)
             {
-                ImapList bodyList = fetchList.GetListAt(bodyIndex);
+                ImapList bodyList = list.GetListAt(bodyIndex + 1);
 
                 if (bodyList.Count != 0)
                 {
@@ -108,37 +108,37 @@ namespace Stratosphere.Imap
             for (int i = 0; i < list.Count; i++)
             {
                 ImapList addressList = list.GetListAt(i);
-				
-				string displayName = addressList.GetStringAt(0);
-				string user = addressList.GetStringAt(2);
-				string host = addressList.GetStringAt(3);
-				
-				if (!string.IsNullOrEmpty(user) &&
-				    !string.IsNullOrEmpty(host))
+                
+                string displayName = addressList.GetStringAt(0);
+                string user = addressList.GetStringAt(2);
+                string host = addressList.GetStringAt(3);
+                
+                if (!string.IsNullOrEmpty(user) &&
+                    !string.IsNullOrEmpty(host))
                 {
-	                string addressString = string.Format("{0}@{1}",
-	                        user, host);
-	
-					MailAddress address = null;
-					
-					try
-					{
-		                if (string.IsNullOrEmpty(displayName))
-		                {
-		                    address = new MailAddress(addressString);
-		                }
-		                else
-		                {
-		                    address = new MailAddress(addressString, displayName);
-		                }
-					}
-					catch (FormatException) { }
-					
-					if (address != null)
-					{
-						yield return address;
-					}
-				}
+                    string addressString = string.Format("{0}@{1}",
+                            user, host);
+    
+                    MailAddress address = null;
+                    
+                    try
+                    {
+                        if (string.IsNullOrEmpty(displayName))
+                        {
+                            address = new MailAddress(addressString);
+                        }
+                        else
+                        {
+                            address = new MailAddress(addressString, displayName);
+                        }
+                    }
+                    catch (FormatException) { }
+                    
+                    if (address != null)
+                    {
+                        yield return address;
+                    }
+                }
             }
         }
 

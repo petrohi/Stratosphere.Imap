@@ -12,6 +12,14 @@ using System.Security.Authentication;
 
 namespace Stratosphere.Imap
 {
+    [Flags]
+    public enum ImapFetchOption
+    {
+        Envelope = 0x1,
+        Flags = 0x2,
+        BodyStructure = 0x4
+    }
+
     public sealed class ImapClient : IDisposable
     {
         private readonly NetworkCredential _credentials;
@@ -71,24 +79,24 @@ namespace Stratosphere.Imap
             return false;
         }
 
-        public IEnumerable<string> List(string reference, string wildcard)
+        public IEnumerable<string> ListFolders(string reference, string wildcard)
         {
             SendReceiveResult result = SendReceive(string.Format("LIST \"{0}\" \"{1}\"", reference, wildcard));
 
             if (result.Status == SendReceiveStatus.OK)
             {
-				foreach (string line in result.Lines)
-				{
-					ImapList list = ImapList.Parse(line);
-					yield return list.GetStringAt(4);
-				}
+                foreach (string line in result.Lines)
+                {
+                    ImapList list = ImapList.Parse(line);
+                    yield return list.GetStringAt(4);
+                }
             }
             else if (result.Status == SendReceiveStatus.Bad)
             {
                 throw new InvalidOperationException();
             }
         }
-		
+        
         public ImapFolder SelectFolder(string folderName)
         {
             ImapFolder folder = null;
@@ -106,10 +114,18 @@ namespace Stratosphere.Imap
             return folder;
         }
 
-        public IEnumerable<ImapMessage> Fetch(int beginNumber, int endNumber)
+        private static string FormatSequence(long begin, long end)
         {
-            List<ImapMessage> messages = new List<ImapMessage>();
-            SendReceiveResult result = SendReceive(string.Format("FETCH {0}:{1} (ENVELOPE FLAGS BODYSTRUCTURE)", beginNumber, endNumber));
+            return string.Format("{0}:{1}", 
+                                 begin == -1 ? "*" : begin.ToString(), 
+                                 end == -1 ? "*" : end.ToString());
+        }
+
+        public IEnumerable<long> FetchUids(long beginNumber, long endNumber)
+        {
+            List<long> uids = new List<long>();
+            SendReceiveResult result = SendReceive(string.Format("FETCH {0} (UID)", 
+                                                                 FormatSequence(beginNumber, endNumber)));
 
             if (result.Status == SendReceiveStatus.OK)
             {
@@ -117,12 +133,61 @@ namespace Stratosphere.Imap
                 {
                     ImapList list = ImapList.Parse(line);
 
-                    if (list.Count >= 3 && list.GetStringAt(0) == "*")
+                    if (list.GetStringAt(0) == "*" &&
+                        list.GetStringAt(2) == "FETCH" &&
+                        list.IsStringAt(1) &&                        
+                        list.IsListAt(3))
                     {
-                        if (list.GetStringAt(2) == "FETCH")
-                        {
-                            messages.Add(new ImapMessage(list));
-                        }
+                        uids.Add(long.Parse(list.GetListAt(3).GetStringAt(1)));
+                    }
+                }
+            }
+            else if (result.Status == SendReceiveStatus.Bad)
+            {
+                throw new InvalidOperationException();
+            }
+
+            return uids;
+        }
+
+        public IEnumerable<ImapMessage> FetchMessages(long beginUid, long endUid, ImapFetchOption option)
+        {
+            List<ImapMessage> messages = new List<ImapMessage>();
+            StringBuilder commandBuilder = new StringBuilder("UID FETCH ");
+            commandBuilder.Append(FormatSequence(beginUid, endUid));
+            commandBuilder.Append(" (UID");
+            
+            if ((option & ImapFetchOption.Envelope) != 0)
+            {
+                commandBuilder.Append(" ENVELOPE");
+            }
+            
+            if ((option & ImapFetchOption.Flags) != 0)
+            {
+                commandBuilder.Append(" FLAGS");
+            }
+            
+            if ((option & ImapFetchOption.BodyStructure) != 0)
+            {
+                commandBuilder.Append(" BODYSTRUCTURE");
+            }
+
+            commandBuilder.Append(')');
+
+            SendReceiveResult result = SendReceive(commandBuilder.ToString());
+
+            if (result.Status == SendReceiveStatus.OK)
+            {
+                foreach (string line in result.Lines)
+                {
+                    ImapList list = ImapList.Parse(line);
+
+                    if (list.GetStringAt(0) == "*" && 
+                        list.GetStringAt(2) == "FETCH" &&
+                        list.IsStringAt(1) &&
+                        list.IsListAt(3))
+                    {
+                        messages.Add(new ImapMessage(long.Parse(list.GetStringAt(1)), list.GetListAt(3)));
                     }
                 }
             }
@@ -134,9 +199,9 @@ namespace Stratosphere.Imap
             return messages;
         }
 
-        public void SetDeleted(int beginNumber, int endNumber)
+        public void SetDeleted(long beginUid, long endUid)
         {
-            StoreFlag(beginNumber, endNumber, "\\Deleted", FlagOperation.Set);
+            StoreFlag(beginUid, endUid, "\\Deleted", FlagOperation.Set);
         }
 
         private enum FlagOperation
@@ -145,10 +210,10 @@ namespace Stratosphere.Imap
             Reset
         }
 
-        private void StoreFlag(int beginNumber, int endNumber, string flag, FlagOperation operation)
+        private void StoreFlag(long beginUid, long endUid, string flag, FlagOperation operation)
         {
             string sign = operation == FlagOperation.Set ? "+" : "-";
-            SendReceiveResult result = SendReceive(string.Format("STORE {0}:{1} {2}FLAGS ({3})", beginNumber, endNumber, sign, flag));
+            SendReceiveResult result = SendReceive(string.Format("UID STORE {0} {1}FLAGS ({2})", FormatSequence(beginUid, endUid), sign, flag));
 
             if (result.Status == SendReceiveStatus.Bad)
             {
@@ -156,9 +221,9 @@ namespace Stratosphere.Imap
             }
         }
         
-        public object FetchSection(int number, ImapBodyPart part)
+        public object FetchSection(long uid, ImapBodyPart part)
         {
-            SendReceiveResult result = SendReceive(string.Format("FETCH {0} BODY[{1}]", number, part.Section));
+            SendReceiveResult result = SendReceive(string.Format("UID FETCH {0} BODY[{1}]", uid, part.Section));
             byte[] bytes = null;
 
             if (result.Status == SendReceiveStatus.OK)
@@ -167,16 +232,13 @@ namespace Stratosphere.Imap
                 string sectionLine = null;
 
                 foreach (string line in result.Lines)
-                {					
+                {                   
                     if (sectionList == null)
                     {
                         ImapList list = ImapList.Parse(line);
-                        int sectionNumber;
 
                         if (list.GetStringAt(0) == "*" &&
-                            list.GetStringAt(2) == "FETCH" &&
-                            int.TryParse(list.GetStringAt(1), out sectionNumber) &&
-                            sectionNumber == number)
+                            list.GetStringAt(2) == "FETCH")
                         {
                             sectionList = list;
                         }
@@ -248,7 +310,7 @@ namespace Stratosphere.Imap
             SendReceiveStatus status = SendReceiveStatus.OK;
             List<string> lines = new List<string>();
 
-            string commandId = string.Format("IMAP{0}", _nextCommandNumber++);
+            string commandId = string.Format("{0}", _nextCommandNumber++);
 
             _writer.Write("{0} {1}\r\n", commandId, command);
             _writer.Flush();
