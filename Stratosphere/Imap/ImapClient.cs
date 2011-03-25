@@ -249,20 +249,29 @@ namespace Stratosphere.Imap
                     }
                     else if (line == ")")
                     {
-                        if (part.Encoding.Equals("BASE64", StringComparison.InvariantCultureIgnoreCase))
+                        if (!string.IsNullOrEmpty(sectionLine))
                         {
-                            bytes = Convert.FromBase64String(sectionLine.Replace("\r\n", string.Empty));
-                        }
-                        else if (
-                            part.Encoding.Equals("7BIT", StringComparison.InvariantCultureIgnoreCase) ||
-                            part.Encoding.Equals("8BIT", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            bytes = Encoding.ASCII.GetBytes(sectionLine);
-                        }
-                        else if (
-                            part.Encoding.Equals("QUOTED-PRINTABLE", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            bytes = Encoding.ASCII.GetBytes(sectionLine);
+                            if (part.Encoding.Equals("BASE64", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                try
+                                {
+                                    bytes = Convert.FromBase64String(sectionLine);
+                                }
+                                catch
+                                {
+                                }
+                            }
+                            else if (
+                                part.Encoding.Equals("7BIT", StringComparison.InvariantCultureIgnoreCase) ||
+                                part.Encoding.Equals("8BIT", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                bytes = Encoding.ASCII.GetBytes(sectionLine);
+                            }
+                            else if (
+                                part.Encoding.Equals("QUOTED-PRINTABLE", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                bytes = Encoding.ASCII.GetBytes(sectionLine);
+                            }
                         }
 
                         break;
@@ -320,6 +329,12 @@ namespace Stratosphere.Imap
             do
             {
                 string line = _reader.ReadLine();
+
+                if (string.IsNullOrEmpty(line))
+                {
+                    throw new IOException();
+                }
+
                 int begin;
 
                 if (line.Length != 0 && line[line.Length - 1] == '}' && (begin = line.LastIndexOf('{')) != -1)
