@@ -220,10 +220,17 @@ namespace Stratosphere.Imap
                 throw new InvalidOperationException();
             }
         }
-        
+
         public object FetchSection(long uid, ImapBodyPart part)
         {
-            SendReceiveResult result = SendReceive(string.Format("UID FETCH {0} BODY[{1}]", uid, part.Section));
+            return FetchSection(uid, part, false);
+        }
+
+        public object FetchSection(long uid, ImapBodyPart part, bool peek)
+        {
+            SendReceiveResult result = SendReceive(string.Format("UID FETCH {0} BODY{1}[{2}]", 
+                uid, peek ? ".PEEK" : string.Empty, part.Section));
+
             byte[] bytes = null;
 
             if (result.Status == SendReceiveStatus.OK)
