@@ -152,6 +152,11 @@ namespace Stratosphere.Imap
 
         public IEnumerable<ImapMessage> FetchMessages(long beginUid, long endUid, ImapFetchOption option)
         {
+            return FetchMessages(beginUid, endUid, option, null);
+        }
+
+        public IEnumerable<ImapMessage> FetchMessages(long beginUid, long endUid, ImapFetchOption option, IEnumerable<string> extensionParameterNames)
+        {
             List<ImapMessage> messages = new List<ImapMessage>();
             StringBuilder commandBuilder = new StringBuilder("UID FETCH ");
             commandBuilder.Append(FormatSequence(beginUid, endUid));
@@ -172,6 +177,15 @@ namespace Stratosphere.Imap
                 commandBuilder.Append(" BODYSTRUCTURE");
             }
 
+            if (null != extensionParameterNames)
+            {
+                foreach (var paramName in extensionParameterNames)
+                {
+                    commandBuilder.Append(" ");
+                    commandBuilder.Append(paramName.Trim());
+                }
+            }
+
             commandBuilder.Append(')');
 
             SendReceiveResult result = SendReceive(commandBuilder.ToString());
@@ -187,7 +201,7 @@ namespace Stratosphere.Imap
                         list.IsStringAt(1) &&
                         list.IsListAt(3))
                     {
-                        messages.Add(new ImapMessage(long.Parse(list.GetStringAt(1)), list.GetListAt(3)));
+                        messages.Add(new ImapMessage(long.Parse(list.GetStringAt(1)), list.GetListAt(3), extensionParameterNames));
                     }
                 }
             }

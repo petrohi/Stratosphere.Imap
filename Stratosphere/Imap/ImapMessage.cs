@@ -25,8 +25,13 @@ namespace Stratosphere.Imap
         public IEnumerable<MailAddress> Bcc { private set; get; }
         public string ID { private set; get; }
         public IEnumerable<ImapBodyPart> BodyParts { private set; get; }
+        public IDictionary<string, object> ExtensionParameters { private set; get; }
 
         internal ImapMessage(long number, ImapList list)
+            : this(number, list, null)
+        { }
+
+        internal ImapMessage(long number, ImapList list, IEnumerable<string> extensionParameterNames)
         {
             Number = number;
 
@@ -68,6 +73,40 @@ namespace Stratosphere.Imap
                 if (bodyList.Count != 0)
                 {
                     BodyParts = ParseBodyParts(string.Empty, bodyList).ToArray();
+                }
+            }
+
+            if (null != extensionParameterNames)
+            {
+                var extensionParams = new Dictionary<string, object>();
+
+                foreach (var paramName in extensionParameterNames)
+                {
+                    int index = list.IndexOfString(paramName);
+                    if (index != -1)
+                    {
+                        int valueIndex = index + 1;
+                        object value = null;
+
+                        if (list.IsStringAt(valueIndex))
+                        {
+                            value = list.GetStringAt(valueIndex);
+                        }
+                        else if (list.IsListAt(valueIndex))
+                        {
+                            value = list.GetListAt(valueIndex);
+                        }
+
+                        if (null != value)
+                        {
+                            extensionParams[paramName] = value;
+                        }
+                    }
+                }
+
+                if (extensionParams.Count > 0)
+                {
+                    ExtensionParameters = extensionParams;
                 }
             }
         }
