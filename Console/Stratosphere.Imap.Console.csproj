@@ -9,7 +9,7 @@
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Stratosphere.Imap.Console</RootNamespace>
-    <AssemblyName>DumpMessages</AssemblyName>
+    <AssemblyName>Stratosphere.Imap.Console</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>

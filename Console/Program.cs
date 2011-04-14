@@ -45,6 +45,40 @@ namespace Stratosphere.Imap.Console
 
                     if (f != null)
                     {
+                        System.Console.WriteLine();
+                        System.Console.WriteLine(">> To exit, type 'EXIT';  To just dump messages in selected folder 'DUMP',");
+                        System.Console.WriteLine(">> otherwise issue IMAP command with the interactive console.");
+                        System.Console.WriteLine();
+
+                        bool isDump = false;
+                        while (!isDump)
+                        {
+                            System.Console.Write("C: {0} ", client.NextCommandNumber);
+                            string cmd = System.Console.ReadLine().Trim().ToUpperInvariant();
+
+                            switch (cmd)
+                            {
+                                case "EXIT":
+                                    return;
+                                    
+                                case "DUMP":
+                                    isDump = true;
+                                    break;
+
+                                default:
+                                    {
+                                        var resp = client.SendReceive(cmd);
+                                        foreach (var line in resp.Lines)
+                                        {
+                                            System.Console.WriteLine("S: {0}", line);
+                                        }
+                                    }
+                                    break;
+                            }
+                        }
+
+
+
                         System.Console.WriteLine("Fetching UIDs from folder [\"{0}\"]...", folder);
 
                         long[] msUids = client.FetchUids(1, -1).ToArray();

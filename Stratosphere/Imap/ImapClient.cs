@@ -32,6 +32,7 @@ namespace Stratosphere.Imap
         private StreamWriter _writer;
 
         private long _nextCommandNumber;
+        public long NextCommandNumber { get { return _nextCommandNumber; } }
 
         public ImapClient(string hostName, int portNumber, bool enableSsl, NetworkCredential credentials)
         {
@@ -116,16 +117,26 @@ namespace Stratosphere.Imap
 
         private static string FormatSequence(long begin, long end)
         {
+            return FormatSequence(begin, end, false);
+        }
+
+        private static string FormatSequence(long begin, long end, bool isUidSet)
+        {
             return string.Format("{0}:{1}", 
-                                 begin == -1 ? "*" : begin.ToString(), 
-                                 end == -1 ? "*" : end.ToString());
+                                 (!isUidSet && begin == -1) ? "*" : begin.ToString(), 
+                                 (!isUidSet && end == -1) ? "*" : end.ToString());
         }
 
         public IEnumerable<long> FetchUids(long beginNumber, long endNumber)
         {
+            return FetchUids(beginNumber, endNumber, false);
+        }
+
+        public IEnumerable<long> FetchUids(long beginNumber, long endNumber, bool isUidSet)
+        {
             List<long> uids = new List<long>();
-            SendReceiveResult result = SendReceive(string.Format("FETCH {0} (UID)", 
-                                                                 FormatSequence(beginNumber, endNumber)));
+            SendReceiveResult result = SendReceive(
+                string.Format("{0}FETCH {1} (UID)", isUidSet ? "UID " : string.Empty, FormatSequence(beginNumber, endNumber, isUidSet)));
 
             if (result.Status == SendReceiveStatus.OK)
             {
@@ -316,14 +327,14 @@ namespace Stratosphere.Imap
             return bytes;
         }
 
-        private enum SendReceiveStatus
+        public enum SendReceiveStatus
         {
             OK = 0,
             No,
             Bad
         }
 
-        private struct SendReceiveResult
+        public struct SendReceiveResult
         {
             public SendReceiveResult(SendReceiveStatus status, IEnumerable<string> lines)
             {
@@ -335,7 +346,7 @@ namespace Stratosphere.Imap
             public readonly IEnumerable<string> Lines;
         }
 
-        private SendReceiveResult SendReceive(string command)
+        public SendReceiveResult SendReceive(string command)
         {
             SendReceiveStatus status = SendReceiveStatus.OK;
             List<string> lines = new List<string>();
