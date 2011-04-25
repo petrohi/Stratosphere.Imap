@@ -40,7 +40,7 @@ namespace Stratosphere.Imap.Console
             {
                 bool loginOk = false;
 
-                if (user.Equals("XOATH", StringComparison.InvariantCultureIgnoreCase))
+                if (user.Equals("XOAUTH", StringComparison.InvariantCultureIgnoreCase))
                 {
                     loginOk = client.TrySaslLogin(user, password);
                 }
