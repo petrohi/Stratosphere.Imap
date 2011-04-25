@@ -44,25 +44,7 @@ namespace Stratosphere.Imap
 
         public bool TryLogin()
         {
-            _tcpClient = new TcpClient(_hostName, _portNumber);
-
-            if (_enableSsl)
-            {
-                SslStream sslStream = new SslStream(_tcpClient.GetStream(), false);
-                sslStream.AuthenticateAsClient(_hostName, null, SslProtocols.Tls, false);
-
-                _reader = new StreamReader(sslStream, Encoding.ASCII);
-                _writer = new StreamWriter(sslStream, Encoding.ASCII);
-            }
-            else
-            {
-                _reader = new StreamReader(_tcpClient.GetStream(), Encoding.ASCII);
-                _writer = new StreamWriter(_tcpClient.GetStream(), Encoding.ASCII);
-            }
-
-            string response = _reader.ReadLine();
-
-            if (response.StartsWith("* OK"))
+            if (InitializeConnection())
             {
                 SendReceiveResult result = SendReceive(string.Format("LOGIN {0} {1}", _credentials.UserName, _credentials.Password));
 
@@ -78,6 +60,56 @@ namespace Stratosphere.Imap
 
             Dispose();
             return false;
+        }
+
+        public bool TrySaslLogin(string mechanism, string data)
+        {
+            if (InitializeConnection())
+            {
+                SendReceiveResult result = SendReceive(string.Format("AUTHENTICATE {0} {1}", mechanism, data));
+
+                if (result.Status == SendReceiveStatus.OK)
+                {
+                    return true;
+                }
+                else if (result.Status == SendReceiveStatus.Bad)
+                {
+                    throw new InvalidOperationException();
+                }
+            }
+
+            Dispose();
+            return false;
+        }
+
+        private bool InitializeConnection()
+        {
+            bool isOk = false;
+
+            if (null == _tcpClient)
+            {
+                _tcpClient = new TcpClient(_hostName, _portNumber);
+
+                if (_enableSsl)
+                {
+                    SslStream sslStream = new SslStream(_tcpClient.GetStream(), false);
+                    sslStream.AuthenticateAsClient(_hostName, null, SslProtocols.Tls, false);
+
+                    _reader = new StreamReader(sslStream, Encoding.ASCII);
+                    _writer = new StreamWriter(sslStream, Encoding.ASCII);
+                }
+                else
+                {
+                    _reader = new StreamReader(_tcpClient.GetStream(), Encoding.ASCII);
+                    _writer = new StreamWriter(_tcpClient.GetStream(), Encoding.ASCII);
+                }
+
+                string response = _reader.ReadLine();
+
+                isOk = (response.StartsWith("* OK"));
+            }
+
+            return isOk;
         }
 
         public IEnumerable<string> ListFolders(string reference, string wildcard)
@@ -410,6 +442,7 @@ namespace Stratosphere.Imap
             if (_tcpClient != null && _tcpClient.Connected)
             {
                 _tcpClient.Close();
+                _tcpClient = null;
             }
         }
     }
