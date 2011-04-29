@@ -72,9 +72,14 @@ namespace Stratosphere.Imap
                 {
                     return true;
                 }
-                else if (result.Status == SendReceiveStatus.Bad)
+                else //if (result.Status == SendReceiveStatus.Bad)
                 {
-                    throw new InvalidOperationException();
+                    StringBuilder linesBuilder = new StringBuilder();
+                    foreach (var line in result.Lines)
+                    {
+                        linesBuilder.AppendLine(line);
+                    }
+                    throw new ArgumentException(linesBuilder.ToString(), "data");
                 }
             }
 

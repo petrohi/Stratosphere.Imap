@@ -176,8 +176,8 @@ namespace Stratosphere.Imap.Console
             System.Console.WriteLine("USAGE: {0} host:port userName password folderName [paramName1 paramName2 ...]", Path.GetFileNameWithoutExtension(AssemblyFileName));
             System.Console.WriteLine();
             System.Console.WriteLine("\thost:port\t- imap server (eg. \"imap.gmail.com:993\")");
-            System.Console.WriteLine("\tuserName\t- the userName to log in as (or 'XOATH' to perform SASL XOATH login)");
-            System.Console.WriteLine("\tpassword\t- the password (or XOATH data if userName == 'XOATH')");
+            System.Console.WriteLine("\tuserName\t- the userName to log in as (or 'XOAUTH' to perform SASL XOAUTH login)");
+            System.Console.WriteLine("\tpassword\t- the password (or XOAUTH data if userName == 'XOAUTH')");
             System.Console.WriteLine("\tfolderName\t- the folder to dump (eg. \"[Gmail]/All Mail\")");
             System.Console.WriteLine("\t[optional] one or more extension parameter names  (eg. X-GM-MSGID X-GM-THRID etc...)");
             System.Console.WriteLine();
