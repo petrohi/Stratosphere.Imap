@@ -147,10 +147,34 @@ namespace Stratosphere.Imap.Console
                 const string ExtensionParamFormat = "\t" + ItemFormat;
                 foreach (var paramName in m.ExtensionParameters.Keys)
                 {
-                    System.Console.WriteLine(ExtensionParamFormat, paramName, m.ExtensionParameters[paramName].ToString());
+                    string paramValue = StringifyExtensionParamValue(m.ExtensionParameters[paramName]);
+
+                    System.Console.WriteLine(ExtensionParamFormat, paramName, paramValue);
                 }
             }
             System.Console.WriteLine("----------");
+        }
+
+        private static string StringifyExtensionParamValue(object value)
+        {
+            string valueString = value as string;
+
+            if (null == valueString)
+            {
+                StringBuilder builder = new StringBuilder("[");
+
+                List<object> valueList = value as List<object>;
+
+                foreach (var subValue in valueList)
+                {
+                    builder.Append(StringifyExtensionParamValue(subValue));
+                    builder.Append(" ");
+                }
+
+                valueString = builder.ToString().TrimEnd() + "]";
+            }
+
+            return valueString;
         }
 
         private static bool CheckArgs(string[] args)

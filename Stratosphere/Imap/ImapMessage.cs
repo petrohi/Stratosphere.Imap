@@ -94,7 +94,7 @@ namespace Stratosphere.Imap
                         }
                         else if (list.IsListAt(valueIndex))
                         {
-                            value = list.GetListAt(valueIndex);
+                            value = list.GetListAt(valueIndex).ToBasicTypesList();
                         }
 
                         if (null != value)

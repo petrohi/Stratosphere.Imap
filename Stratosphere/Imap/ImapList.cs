@@ -8,6 +8,32 @@ namespace Stratosphere.Imap
 {
     internal sealed class ImapList
     {
+        public List<object> ToBasicTypesList()
+        {
+            List<object> theList = new List<object>();
+
+            // NOTE:  For now, we'll do this recursively, but better approach is non-recursive.
+            foreach (var item in _list)
+            {
+                if (item is string)
+                {
+                    theList.Add(item);
+                }
+                else if (item is ImapList)
+                {
+                    theList.Add((item as ImapList).ToBasicTypesList());
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        string.Format("Encountered (currently) unsupported list type [{0}].  Unable to transform to basic-types list",
+                        item.GetType().Name));
+                }
+            }
+
+            return theList;
+        }
+
         private readonly List<object> _list = new List<object>();
 
         private ImapList() { }
