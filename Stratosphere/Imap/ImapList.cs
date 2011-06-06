@@ -85,32 +85,7 @@ namespace Stratosphere.Imap
             }
             else
             {
-                bool isEncoded = false;
-
-                if (s.StartsWith("=?"))
-                {
-                    string[] segments = s.Split('?');
-
-                    if (segments.Length == 5 &&
-                        segments[0] == "=" &&
-                        segments[2] == "B" && 
-                        segments[4] == "=")
-                    {
-                        try
-                        {
-                            _list.Add(Encoding.GetEncoding(segments[1]).GetString(Convert.FromBase64String(segments[3])));
-                            
-                            isEncoded = true;
-                        }
-                        catch (ArgumentException) { }
-                        catch (FormatException) { }
-                    }
-                }
-
-                if (!isEncoded)
-                {
-                    _list.Add(s);
-                }
+                _list.Add(RFC2047Decoder.Parse(s));
             }
         }
 

@@ -49,6 +49,7 @@
     <Compile Include="Stratosphere\Imap\ImapFolder.cs" />
     <Compile Include="Stratosphere\Imap\ImapList.cs" />
     <Compile Include="Stratosphere\Imap\ImapMessage.cs" />
+    <Compile Include="Stratosphere\Imap\RFC2047Decoder.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -5,7 +5,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stratosphere.Imap", "Strato
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stratosphere.Imap.Console", "Console\Stratosphere.Imap.Console.csproj", "{ACC803E0-15FA-43DA-955F-7243737E3C9F}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{39B19B47-CB59-4408-93A3-712254FF5177}"
+	ProjectSection(SolutionItems) = preProject
+		Local.testsettings = Local.testsettings
+		Stratosphere.Imap.vsmdi = Stratosphere.Imap.vsmdi
+		TraceAndTestImpact.testsettings = TraceAndTestImpact.testsettings
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Stratosphere.Imap.Test", "Test\Stratosphere.Imap.Test.csproj", "{4B647F00-D518-4B75-83A3-3C46F4BE4C47}"
+EndProject
 Global
+	GlobalSection(TestCaseManagementSettings) = postSolution
+		CategoryFile = Stratosphere.Imap.vsmdi
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|Mixed Platforms = Debug|Mixed Platforms
@@ -35,6 +47,16 @@ Global
 		{ACC803E0-15FA-43DA-955F-7243737E3C9F}.Release|Mixed Platforms.Build.0 = Release|x86
 		{ACC803E0-15FA-43DA-955F-7243737E3C9F}.Release|x86.ActiveCfg = Release|x86
 		{ACC803E0-15FA-43DA-955F-7243737E3C9F}.Release|x86.Build.0 = Release|x86
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{4B647F00-D518-4B75-83A3-3C46F4BE4C47}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
