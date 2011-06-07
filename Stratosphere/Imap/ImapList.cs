@@ -40,6 +40,62 @@ namespace Stratosphere.Imap
 
         private ImapList(IEnumerator<char> chars)
         {
+            StringBuilder aggregateBuilder = new StringBuilder();
+            const char EscapeChar = '\\';
+            const char QuoteChar = '\"';
+            bool isInQuotes = false;
+            bool isEscaped = false;
+
+            while (chars.MoveNext())
+            {
+                if (!isEscaped && isInQuotes && chars.Current == EscapeChar)
+                {
+                    isEscaped = true;
+                }
+                else
+                {
+                    if (chars.Current == QuoteChar && !isEscaped)
+                    {
+                        isInQuotes = !isInQuotes;
+                    }
+                    else if (chars.Current == ' ' && !isInQuotes)
+                    {
+                        if (aggregateBuilder.Length > 0)
+                        {
+                            AddString(aggregateBuilder.ToString());
+                            aggregateBuilder = new StringBuilder();
+                        }
+                    }
+                    else if (chars.Current == '(' && !isInQuotes)
+                    {
+                        _list.Add(new ImapList(chars));
+                    }
+                    else if (chars.Current == ')' && !isInQuotes)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        if (isEscaped && chars.Current != QuoteChar && chars.Current != EscapeChar)
+                        {
+                            // It wasn't escaping a quote or escape char, so add the escape char back
+                            aggregateBuilder.Append(EscapeChar);
+                        }
+
+                        aggregateBuilder.Append(chars.Current);
+                        isEscaped = false;
+                    }
+                }
+            }
+
+            if (aggregateBuilder.Length > 0)
+            {
+                AddString(aggregateBuilder.ToString());
+            }
+        }
+
+        private void ORIG_PARSE(IEnumerator<char> chars)
+        {
             StringBuilder builder = new StringBuilder();
             bool isInQuotes = false;
 

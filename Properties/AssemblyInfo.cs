@@ -34,3 +34,7 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+
+// See the following on "friend assemblies":  http://msdn.microsoft.com/en-us/library/0tke9fxk(VS.80).aspx
+// Allow internals to be visible to Stratosphere.Imap.Test assembly
+[assembly: InternalsVisibleTo("Stratosphere.Imap.Test")]
