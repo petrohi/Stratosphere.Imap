@@ -53,11 +53,13 @@ namespace Stratosphere.Imap.Console
                 {
                     System.Console.WriteLine("INFO: Login to [{0}:{1}] succeeded for user [{2}].", host, port, user);
                     ImapFolder f = client.SelectFolder(folder);
+                    System.Console.WriteLine("INFO: 'Next UID value' is [{0}].", f.UidNext);
+                    string cmd = null;
 
                     if (f != null)
                     {
                         System.Console.WriteLine();
-                        System.Console.WriteLine(">> To exit, type 'EXIT';  To just dump messages in selected folder 'DUMP',");
+                        System.Console.WriteLine(">> To exit, type 'EXIT';  To just dump messages in selected folder 'DUMP [lowUid[:highUid]]',");
                         System.Console.WriteLine(">> otherwise issue IMAP command with the interactive console.");
                         System.Console.WriteLine();
 
@@ -65,34 +67,45 @@ namespace Stratosphere.Imap.Console
                         while (!isDump)
                         {
                             System.Console.Write("C: {0} ", client.NextCommandNumber);
-                            string cmd = System.Console.ReadLine().Trim().ToUpperInvariant();
+                            cmd = System.Console.ReadLine().Trim().ToUpperInvariant();
 
-                            switch (cmd)
+                            if (cmd.StartsWith("EXIT"))
                             {
-                                case "EXIT":
-                                    return;
-                                    
-                                case "DUMP":
-                                    isDump = true;
-                                    break;
-
-                                default:
-                                    {
-                                        var resp = client.SendReceive(cmd);
-                                        foreach (var line in resp.Lines)
-                                        {
-                                            System.Console.WriteLine("S: {0}", line);
-                                        }
-                                    }
-                                    break;
+                                return;
+                            }
+                            else if (cmd.StartsWith("DUMP"))
+                            {
+                                isDump = true;
+                            }
+                            else
+                            {
+                                var resp = client.SendReceive(cmd);
+                                foreach (var line in resp.Lines)
+                                {
+                                    System.Console.WriteLine("S: {0}", line);
+                                }
                             }
                         }
 
+                        long lowUid = 1;
+                        long highUid = -1;
 
+                        string dumpRange = cmd.Substring("EXIT".Length).Trim();
+                        var rangeArgs = dumpRange.Split(':', ' ', '-');
+                        if (rangeArgs.Length > 0)
+                        {
+                            long.TryParse(rangeArgs[0], out lowUid);
+                        }
 
-                        System.Console.WriteLine("Fetching UIDs from folder [\"{0}\"]...", folder);
+                        if (rangeArgs.Length > 1)
+                        {
+                            long.TryParse(rangeArgs[1], out highUid);
+                        }
 
-                        long[] msUids = client.FetchUids(1, -1).ToArray();
+                        System.Console.WriteLine("Fetching UIDs in range [{0}:{1}] from folder [\"{2}\"]...", 
+                            lowUid, highUid, folder);
+
+                        long[] msUids = client.FetchUids(lowUid, highUid, true).ToArray();
 
                         System.Console.WriteLine("Fetching [{0}] headers...", msUids.Length);
 
