@@ -6,8 +6,10 @@ namespace Stratosphere.Imap
 {
     public sealed class ImapFolder
     {
-        internal ImapFolder(IEnumerable<string> lines)
+        internal ImapFolder(string name, IEnumerable<string> lines)
         {
+            Name = name;
+
             UidNext = long.MaxValue;
 
             foreach (string line in lines)
@@ -38,15 +40,21 @@ namespace Stratosphere.Imap
                     if (uidNextPos >= 0)
                     {
                         long uidNext = long.MaxValue;
-                        if (long.TryParse(list.GetStringAt(uidNextPos+1).TrimEnd(']'), out uidNext))
+                        if (long.TryParse(list.GetStringAt(uidNextPos + 1).TrimEnd(']'), out uidNext))
                         {
                             UidNext = uidNext;
                         }
                     }
                 }
+                else
+                {
+                    IsReadOnly = (list.GetStringAt(2) == "[READ-ONLY]");
+                }
             }
         }
 
+        public string Name { private set; get; }
+        public bool IsReadOnly { private set; get; }
         public int ExistsCount { private set; get; }
         public int RecentCount { private set; get; }
         public long UidNext { private set; get; }

@@ -112,7 +112,7 @@ namespace Stratosphere.Imap.Console
                         }
 
                         System.Console.WriteLine("Fetching UIDs in range [{0}:{1}] from folder [\"{2}\"]...", 
-                            lowUid, highUid, folder);
+                            lowUid, highUid, client.SelectedFolder.Name);
 
                         long[] msUids = client.FetchUids(lowUid, highUid, true).ToArray();
 

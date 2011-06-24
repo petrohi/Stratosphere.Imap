@@ -165,20 +165,36 @@ namespace Stratosphere.Imap
             }
         }
 
+        public ImapFolder SelectedFolder { get; private set; }
+
         public ImapFolder SelectFolder(string folderName)
         {
+            return SelectFolder(folderName, false);
+        }
+
+        public ImapFolder SelectFolder(string folderName, bool isReadonly)
+        {
             ImapFolder folder = null;
-            SendReceiveResult result = SendReceive(string.Format("SELECT \"{0}\"", folderName));
-
-            if (result.Status == SendReceiveStatus.OK)
+            if (string.IsNullOrEmpty(folderName))
             {
-                folder = new ImapFolder(result.Lines);
+                SendReceive("UNSELECT");
             }
-            else if (result.Status == SendReceiveStatus.Bad)
+            else
             {
-                throw new InvalidOperationException();
+                string selectionKeyword = isReadonly ? "EXAMINE" : "SELECT";
+                SendReceiveResult result = SendReceive(string.Format("{0} \"{1}\"", selectionKeyword, folderName));
+
+                if (result.Status == SendReceiveStatus.OK)
+                {
+                    folder = new ImapFolder(folderName, result.Lines);
+                }
+                else if (result.Status == SendReceiveStatus.Bad)
+                {
+                    throw new InvalidOperationException();
+                }
             }
 
+            SelectedFolder = folder;
             return folder;
         }
 
