@@ -55,6 +55,7 @@ namespace Stratosphere.Imap.Console
                     ImapFolder f = client.SelectFolder(folder);
                     System.Console.WriteLine("INFO: 'Next UID value' is [{0}].", f.UidNext);
                     string cmd = null;
+                    string upperCmd = null;
 
                     if (f != null)
                     {
@@ -67,13 +68,15 @@ namespace Stratosphere.Imap.Console
                         while (!isDump)
                         {
                             System.Console.Write("C: {0} ", client.NextCommandNumber);
-                            cmd = System.Console.ReadLine().Trim().ToUpperInvariant();
 
-                            if (cmd.StartsWith("EXIT"))
+                            cmd = System.Console.ReadLine().Trim();
+                            upperCmd = cmd.ToUpperInvariant();
+
+                            if (upperCmd.StartsWith("EXIT"))
                             {
                                 return;
                             }
-                            else if (cmd.StartsWith("DUMP"))
+                            else if (upperCmd.StartsWith("DUMP"))
                             {
                                 isDump = true;
                             }
@@ -88,18 +91,24 @@ namespace Stratosphere.Imap.Console
                         }
 
                         long lowUid = 1;
-                        long highUid = -1;
+                        long highUid = f.UidNext;
 
-                        string dumpRange = cmd.Substring("EXIT".Length).Trim();
-                        var rangeArgs = dumpRange.Split(':', ' ', '-');
+                        string dumpRange = upperCmd.Substring("DUMP".Length).Trim();
+                        var rangeArgs = dumpRange.Split( new char[]{':', ' ', '-'}, StringSplitOptions.RemoveEmptyEntries);
                         if (rangeArgs.Length > 0)
                         {
-                            long.TryParse(rangeArgs[0], out lowUid);
+                            if (!long.TryParse(rangeArgs[0], out lowUid))
+                            {
+                                lowUid = 1;
+                            }
                         }
 
                         if (rangeArgs.Length > 1)
                         {
-                            long.TryParse(rangeArgs[1], out highUid);
+                            if (!long.TryParse(rangeArgs[1], out highUid))
+                            {
+                                highUid = f.UidNext;
+                            }
                         }
 
                         System.Console.WriteLine("Fetching UIDs in range [{0}:{1}] from folder [\"{2}\"]...", 
