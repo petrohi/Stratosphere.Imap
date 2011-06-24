@@ -134,7 +134,37 @@ namespace Stratosphere.Imap
                 throw new InvalidOperationException();
             }
         }
-        
+
+        public IEnumerable<KeyValuePair<string, IEnumerable<string>>> ListFoldersWithFlags(string reference, string wildcard, bool useXList)
+        {
+            SendReceiveResult result = SendReceive(string.Format("{0}LIST \"{1}\" \"{2}\"", 
+                (useXList ? "X" : string.Empty), reference, wildcard));
+
+            if (result.Status == SendReceiveStatus.OK)
+            {
+                foreach (string line in result.Lines)
+                {
+                    ImapList list = ImapList.Parse(line);
+                    List<string> flags = new List<string>();
+
+                    var flagsList = list.GetListAt(2);
+                    for (int i = 0; i < flagsList.Count; ++i)
+                    {
+                        if (flagsList.IsStringAt(i))
+                        {
+                            flags.Add(flagsList.GetStringAt(i));
+                        }
+                    }
+
+                    yield return new KeyValuePair<string, IEnumerable<string>>(list.GetStringAt(4), flags);
+                }
+            }
+            else if (result.Status == SendReceiveStatus.Bad)
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
         public ImapFolder SelectFolder(string folderName)
         {
             ImapFolder folder = null;
