@@ -98,6 +98,8 @@ namespace Stratosphere.Imap
                 if (_enableSsl)
                 {
                     SslStream sslStream = new SslStream(_tcpClient.GetStream(), false);
+                    _disposables.Add(sslStream);
+
                     sslStream.AuthenticateAsClient(_hostName, null, SslProtocols.Tls, false);
 
                     _reader = new StreamReader(sslStream, Encoding.ASCII);
@@ -105,8 +107,11 @@ namespace Stratosphere.Imap
                 }
                 else
                 {
-                    _reader = new StreamReader(_tcpClient.GetStream(), Encoding.ASCII);
-                    _writer = new StreamWriter(_tcpClient.GetStream(), Encoding.ASCII);
+                    NetworkStream stream = _tcpClient.GetStream();
+                    _disposables.Add(stream);
+
+                    _reader = new StreamReader(stream, Encoding.ASCII);
+                    _writer = new StreamWriter(stream, Encoding.ASCII);
                 }
 
                 string response = _reader.ReadLine();
@@ -490,11 +495,39 @@ namespace Stratosphere.Imap
 
         public void Dispose()
         {
-            if (_tcpClient != null && _tcpClient.Connected)
+            if (null != _reader)
+            {
+                _reader.Dispose();
+                _reader = null;
+            }
+
+            if (null != _writer)
+            {
+                try
+                {
+                    _writer.Dispose();
+                }
+                catch (Exception) { }
+                _writer = null;
+            }
+
+            foreach (var disposable in _disposables)
+            {
+                disposable.Dispose();
+            }
+            _disposables.Clear();
+
+            if (_tcpClient != null)
             {
                 _tcpClient.Close();
                 _tcpClient = null;
             }
         }
+
+        /// <summary>
+        /// Member for gathering disposables that must be disposed during ImapClient's Dispose()
+        /// implementation.
+        /// </summary>
+        private readonly List<IDisposable> _disposables = new List<IDisposable>();
     }
 }
