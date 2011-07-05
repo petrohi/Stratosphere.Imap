@@ -92,6 +92,15 @@ namespace Stratosphere.Imap.Test
         }
 
         [TestMethod]
+        public void RealWorldData_3_EqualsAsWordsFirstCharacter()
+        {
+            const string Encoded = "=?ISO-8859-1?Q?a?= =?ISO-8859-1?Q?=2C?= =?ISO-8859-2?Q?_b?= =?ISO-8859-1?Q?=3B=3D?= =?ISO-8859-2?Q?_c?=";
+            const string Expected = "a, b;= c";
+
+            VerifyDecoding(Encoded, Expected);
+        }
+
+        [TestMethod]
         public void ParseQuotedPrintable_Basic()
         {
             const string Encoded = "Another test...  ?=3D  =2C   =3B   =3D   =3D=3D    =3D2C";

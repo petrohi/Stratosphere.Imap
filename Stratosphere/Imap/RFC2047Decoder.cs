@@ -24,7 +24,8 @@ namespace Stratosphere.Imap
             bool readingWord = false;
             bool hasSeenAtLeastOneWord = false;
 
-            Int32 i = 0;
+            int wordQuestionMarkCount = 0;
+            int i = 0;
             while (i < input.Length)
             {
                 char currentChar = input[i];
@@ -34,7 +35,7 @@ namespace Stratosphere.Imap
                     case '=':
                         peekAhead = (i == input.Length - 1) ? ' ' : input[i + 1];
 
-                        if (peekAhead == '?')
+                        if (!readingWord && peekAhead == '?')
                         {
                             if (!hasSeenAtLeastOneWord
                                 || (hasSeenAtLeastOneWord && currentSurroundingText.ToString().Trim().Length > 0) )
@@ -45,15 +46,18 @@ namespace Stratosphere.Imap
                             currentSurroundingText = new StringBuilder();
                             hasSeenAtLeastOneWord = true;
                             readingWord = true;
+                            wordQuestionMarkCount = 0;
                         }
                         break;
 
                     case '?':
                         if (readingWord)
                         {
+                            wordQuestionMarkCount++;
+
                             peekAhead = (i == input.Length - 1) ? ' ' : input[i + 1];
 
-                            if (peekAhead == '=')
+                            if (wordQuestionMarkCount > 3 && peekAhead == '=')
                             {
                                 readingWord = false;
 
@@ -115,7 +119,8 @@ namespace Stratosphere.Imap
                 case 'b':
                     string baseString = input.Substring(startPosition, input.Length - startPosition - 2);
                     byte[] baseDecoded = Convert.FromBase64String(baseString);
-                    sb.Append(enc.GetString(baseDecoded));
+                    var intermediate = enc.GetString(baseDecoded);
+                    sb.Append(intermediate);
                     break;
             }
             return sb.ToString();
@@ -161,17 +166,14 @@ namespace Stratosphere.Imap
                         }
                         break;
                     case '?':
-                        if (input[i + 1] == '=')
+                        if (skipQuestionEquals && input[i + 1] == '=')
                         {
-                            if (skipQuestionEquals)
-                            {
-                                i += 2;
-                            }
-                            else
-                            {
-                                sb.Append('?');
-                                i++;
-                            }
+                            i += 2;
+                        }
+                        else
+                        {
+                            sb.Append('?');
+                            i++;
                         }
                         break;
                     case '_':
