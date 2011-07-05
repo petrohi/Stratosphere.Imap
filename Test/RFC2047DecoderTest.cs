@@ -81,6 +81,26 @@ namespace Stratosphere.Imap.Test
             VerifyDecoding(Encoded, Expected);
         }
 
+        [TestMethod]
+        public void RealWorldData_2()
+        {
+            // "Another test...  ?=  ,   ;   =   ==    =2C"
+            const string Encoded = "Another test...  ?=  ,   ;   =   ==    =2C";
+            const string Expected = "Another test...  ?=  ,   ;   =   ==    =2C";
+
+            VerifyDecoding(Encoded, Expected);
+        }
+
+        [TestMethod]
+        public void ParseQuotedPrintable_Basic()
+        {
+            const string Encoded = "Another test...  ?=3D  =2C   =3B   =3D   =3D=3D    =3D2C";
+            const string Expected = "Another test...  ?=  ,   ;   =   ==    =2C";
+
+            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
+            Assert.AreEqual(Expected, decoded);
+        }
+
         private static void VerifyDecoding(string encoded, string expectedDecoded)
         {
             var decoded = RFC2047Decoder.Parse(encoded);

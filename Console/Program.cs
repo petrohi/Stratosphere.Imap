@@ -60,25 +60,32 @@ namespace Stratosphere.Imap.Console
                     if (f != null)
                     {
                         System.Console.WriteLine();
-                        System.Console.WriteLine(">> To exit, type 'EXIT';  To just dump messages in selected folder 'DUMP [lowUid[:highUid]]',");
-                        System.Console.WriteLine(">> otherwise issue IMAP command with the interactive console.");
+                        System.Console.WriteLine(">> To exit, type 'EXIT';  To just dump messages in selected folder 'DUMP [lowUid[:highUid]]';");
+                        System.Console.WriteLine(">> to just dump a message body 'BODY msgUid'; otherwise issue IMAP command with the interactive");
+                        System.Console.WriteLine(">> console.");
                         System.Console.WriteLine();
 
-                        bool isDump = false;
-                        while (!isDump)
+                        while (true)
                         {
                             System.Console.Write("C: {0} ", client.NextCommandNumber);
 
                             cmd = System.Console.ReadLine().Trim();
                             upperCmd = cmd.ToUpperInvariant();
-
+                            if (string.IsNullOrEmpty(cmd))
+                            {
+                                continue;
+                            }
                             if (upperCmd.StartsWith("EXIT"))
                             {
                                 return;
                             }
                             else if (upperCmd.StartsWith("DUMP"))
                             {
-                                isDump = true;
+                                DumpMessages(paramNames, client, f, upperCmd);
+                            }
+                            else if (upperCmd.StartsWith("BODY"))
+                            {
+                                DumpBody(paramNames, client, f, upperCmd);
                             }
                             else
                             {
@@ -87,59 +94,6 @@ namespace Stratosphere.Imap.Console
                                 {
                                     System.Console.WriteLine("S: {0}", line);
                                 }
-                            }
-                        }
-
-                        long lowUid = 1;
-                        long highUid = f.UidNext;
-
-                        string dumpRange = upperCmd.Substring("DUMP".Length).Trim();
-                        var rangeArgs = dumpRange.Split( new char[]{':', ' ', '-'}, StringSplitOptions.RemoveEmptyEntries);
-                        if (rangeArgs.Length > 0)
-                        {
-                            if (!long.TryParse(rangeArgs[0], out lowUid))
-                            {
-                                lowUid = 1;
-                            }
-                        }
-
-                        if (rangeArgs.Length > 1)
-                        {
-                            if (!long.TryParse(rangeArgs[1], out highUid))
-                            {
-                                highUid = f.UidNext;
-                            }
-                        }
-
-                        System.Console.WriteLine("Fetching UIDs in range [{0}:{1}] from folder [\"{2}\"]...", 
-                            lowUid, highUid, client.SelectedFolder.Name);
-
-                        long[] msUids = client.FetchUids(lowUid, highUid, true).ToArray();
-
-                        System.Console.WriteLine("Fetching [{0}] headers...", msUids.Length);
-
-                        const int HeaderBlockSize = 1000;
-
-                        for (int i = 0; i < msUids.Length; i += HeaderBlockSize)
-                        {
-                            int j = i + HeaderBlockSize;
-
-                            if (j >= msUids.Length)
-                            {
-                                j = msUids.Length - 1;
-                            }
-
-                            ImapFetchOption opts =
-                                ImapFetchOption.Envelope
-                                | ImapFetchOption.BodyStructure
-                                | ImapFetchOption.Flags;
-
-                            ImapMessage[] ms = client.FetchMessages(msUids[i], msUids[j], opts, paramNames).ToArray();
-
-                            foreach (ImapMessage m in ms)
-                            {
-                                DumpMessageInfo(m);
-                                System.Console.WriteLine();
                             }
                         }
                     }
@@ -151,6 +105,112 @@ namespace Stratosphere.Imap.Console
                 else
                 {
                     Usage(string.Format("ERROR: Login to [{0}:{1}] failed for user [{2}].", host, port, user));
+                }
+            }
+        }
+
+        private static void DumpBody(List<string> paramNames, ImapClient client, ImapFolder f, string upperCmd)
+        {
+            long uid = -1;
+            string uidString = upperCmd.Substring("BODY".Length).Trim();
+            if (!long.TryParse(uidString, out uid))
+            {
+                throw new ArgumentException("Must include valid message UID for BODY dump.", "uid");
+            }
+
+            var message = client.FetchMessages(uid, uid, ImapFetchOption.BodyStructure).FirstOrDefault();
+            if (null == message)
+            {
+                System.Console.WriteLine("Message with UID [{0}] not found.  Can not dump its body.", uid);
+            }
+            else
+            {
+                foreach (var part in message.BodyParts)
+                {
+                    DumpBodyPart(client, uid, part);
+                }
+            }
+        }
+
+        private static void DumpBodyPart(ImapClient client, long uid, ImapBodyPart part)
+        {
+            const string ItemFormat = "\t{0}:\t{1}";
+            System.Console.WriteLine("==========");
+            System.Console.WriteLine("MSG PART SECTION [{0}]  ({1} bytes):", part.Section, part.Size);
+            System.Console.WriteLine(ItemFormat, "Encoding", part.Encoding);
+            System.Console.WriteLine(ItemFormat, "ContentType", part.ContentType.ToString());
+
+            if (!string.IsNullOrEmpty(part.ContentType.CharSet))
+            {
+                System.Console.WriteLine(ItemFormat, "DATA", "\n");
+                var sectionData = client.FetchSection(uid, part, true);
+                if (sectionData is string)
+                {
+                    System.Console.WriteLine(sectionData as string);
+                }
+                else
+                {
+                    var arr = sectionData as byte[];
+                    System.Console.WriteLine("<< BINARY DATA NOT DUMPED - {0} bytes >>", arr.Length);
+                }
+                System.Console.WriteLine();
+            }
+            
+            System.Console.WriteLine("----------");
+        }
+
+        private static void DumpMessages(List<string> paramNames, ImapClient client, ImapFolder f, string upperCmd)
+        {
+            long lowUid = 1;
+            long highUid = f.UidNext;
+
+            string dumpRange = upperCmd.Substring("DUMP".Length).Trim();
+            var rangeArgs = dumpRange.Split(new char[] { ':', ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            if (rangeArgs.Length > 0)
+            {
+                if (!long.TryParse(rangeArgs[0], out lowUid))
+                {
+                    lowUid = 1;
+                }
+            }
+
+            if (rangeArgs.Length > 1)
+            {
+                if (!long.TryParse(rangeArgs[1], out highUid))
+                {
+                    highUid = f.UidNext;
+                }
+            }
+
+            System.Console.WriteLine("Fetching UIDs in range [{0}:{1}] from folder [\"{2}\"]...",
+                lowUid, highUid, client.SelectedFolder.Name);
+
+            long[] msUids = client.FetchUids(lowUid, highUid, true).ToArray();
+
+            System.Console.WriteLine("Fetching [{0}] headers...", msUids.Length);
+
+            const int HeaderBlockSize = 1000;
+
+            for (int i = 0; i < msUids.Length; i += HeaderBlockSize)
+            {
+                int j = i + HeaderBlockSize;
+
+                if (j >= msUids.Length)
+                {
+                    j = msUids.Length - 1;
+                }
+
+                ImapFetchOption opts =
+                    ImapFetchOption.Envelope
+                    | ImapFetchOption.BodyStructure
+                    | ImapFetchOption.Flags;
+
+                ImapMessage[] ms = client.FetchMessages(msUids[i], msUids[j], opts, paramNames).ToArray();
+
+                foreach (ImapMessage m in ms)
+                {
+                    DumpMessageInfo(m);
+                    System.Console.WriteLine();
                 }
             }
         }

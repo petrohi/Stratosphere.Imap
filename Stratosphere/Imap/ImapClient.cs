@@ -407,7 +407,9 @@ namespace Stratosphere.Imap
             {
                 try
                 {
-                    return Encoding.GetEncoding(part.ContentType.CharSet.Trim(new char[] { '"' })).GetString(bytes);
+                    Encoding enc = Encoding.GetEncoding(part.ContentType.CharSet.Trim(new char[] { '"' }));
+                    string intermediate = enc.GetString(bytes);
+                    return RFC2047Decoder.ParseQuotedPrintable(enc, intermediate);
                 }
                 catch (ArgumentException) { }
             }

@@ -49,20 +49,23 @@ namespace Stratosphere.Imap
                         break;
 
                     case '?':
-                        peekAhead = (i == input.Length - 1) ? ' ' : input[i + 1];
-
-                        if (peekAhead == '=')
+                        if (readingWord)
                         {
-                            readingWord = false;
+                            peekAhead = (i == input.Length - 1) ? ' ' : input[i + 1];
 
-                            currentWord.Append(currentChar);
-                            currentWord.Append(peekAhead);
+                            if (peekAhead == '=')
+                            {
+                                readingWord = false;
 
-                            sb.Append(ParseEncodedWord(currentWord.ToString()));
-                            currentWord = new StringBuilder();
+                                currentWord.Append(currentChar);
+                                currentWord.Append(peekAhead);
 
-                            i += 2;
-                            continue;
+                                sb.Append(ParseEncodedWord(currentWord.ToString()));
+                                currentWord = new StringBuilder();
+
+                                i += 2;
+                                continue;
+                            }
                         }
                         break;
                 }
@@ -102,52 +105,86 @@ namespace Stratosphere.Imap
             char type = input[encodingName.Length + 3];
 
             // Start after the name of the encoding and the other required parts
-            Int32 i = encodingName.Length + 5;
+            int startPosition = encodingName.Length + 5;
 
             switch (char.ToLowerInvariant(type))
             {
                 case 'q':
-                    while (i < input.Length)
-                    {
-                        char currentChar = input[i];
-                        char[] peekAhead = new char[2];
-                        switch (currentChar)
-                        {
-                            case '=':
-                                peekAhead = (i >= input.Length - 2) ? null : new char[] { input[i + 1], input[i + 2] };
-
-                                if (peekAhead == null)
-                                {
-                                    sb.Append(currentChar);
-                                    i++;
-                                    break;
-                                }
-
-                                string decodedChar = enc.GetString(new byte[] { Convert.ToByte(new string(peekAhead, 0, 2), 16) });
-                                sb.Append(decodedChar);
-                                i += 3;
-                                break;
-                            case '?':
-                                if (input[i + 1] == '=')
-                                    i += 2;
-                                break;
-                            case '_':
-                                sb.Append(' ');
-                                i++;
-                                break;
-                            default:
-                                sb.Append(currentChar);
-                                i++;
-                                break;
-                        }
-                    }
+                    sb.Append(ParseQuotedPrintable(enc, input, startPosition, true));
                     break;
                 case 'b':
-                    string baseString = input.Substring(i, input.Length - i - 2);
+                    string baseString = input.Substring(startPosition, input.Length - startPosition - 2);
                     byte[] baseDecoded = Convert.FromBase64String(baseString);
                     sb.Append(enc.GetString(baseDecoded));
                     break;
             }
+            return sb.ToString();
+        }
+
+        public static string ParseQuotedPrintable(Encoding enc, string input)
+        {
+            return ParseQuotedPrintable(enc, input, 0, false);
+        }
+
+        public static string ParseQuotedPrintable(Encoding enc, string input, int startPos, bool skipQuestionEquals)
+        {
+            StringBuilder sb = new StringBuilder(input.Length);
+
+            int i = startPos;
+
+            while (i < input.Length)
+            {
+                char currentChar = input[i];
+                char[] peekAhead = new char[2];
+                switch (currentChar)
+                {
+                    case '=':
+                        peekAhead = (i >= input.Length - 2) ? null : new char[] { input[i + 1], input[i + 2] };
+
+                        if (peekAhead == null)
+                        {
+                            sb.Append(currentChar);
+                            i++;
+                            break;
+                        }
+
+                        try
+                        {
+                            string decodedChar = enc.GetString(new byte[] { Convert.ToByte(new string(peekAhead, 0, 2), 16) });
+                            sb.Append(decodedChar);
+                            i += 3;
+                        }
+                        catch (Exception)
+                        {
+                            // could not parse the peek-ahead chars as a hex number... so gobble the un-encoded '='
+                            i += 1;
+                        }
+                        break;
+                    case '?':
+                        if (input[i + 1] == '=')
+                        {
+                            if (skipQuestionEquals)
+                            {
+                                i += 2;
+                            }
+                            else
+                            {
+                                sb.Append('?');
+                                i++;
+                            }
+                        }
+                        break;
+                    case '_':
+                        sb.Append(' ');
+                        i++;
+                        break;
+                    default:
+                        sb.Append(currentChar);
+                        i++;
+                        break;
+                }
+            }
+
             return sb.ToString();
         }
     }
