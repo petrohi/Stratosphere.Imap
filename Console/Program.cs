@@ -38,6 +38,8 @@ namespace Stratosphere.Imap.Console
 
             using (var client = new ImapClient(host, port, true, new NetworkCredential(user, password)))
             {
+                client.ParseFailures += HandleParseFailures;
+
                 bool loginOk = false;
 
                 if (user.Equals("XOAUTH", StringComparison.InvariantCultureIgnoreCase))
@@ -106,6 +108,14 @@ namespace Stratosphere.Imap.Console
                 {
                     Usage(string.Format("ERROR: Login to [{0}:{1}] failed for user [{2}].", host, port, user));
                 }
+            }
+        }
+
+        private static void HandleParseFailures(object sender, ParseFailureEventArgs args)
+        {
+            foreach (var detail in args.Details)
+            {
+                System.Console.WriteLine("Parse failure on line: [{0}]", detail.Line);
             }
         }
 

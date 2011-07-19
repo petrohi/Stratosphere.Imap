@@ -20,6 +20,36 @@ namespace Stratosphere.Imap
         BodyStructure = 0x4
     }
 
+    public class ParseFailureDetail
+    {
+        public ParseFailureDetail(Exception ex, string line) 
+        { 
+            Exception = ex;
+            Line = line;
+        }
+        public readonly Exception Exception;
+        public readonly string Line;
+    }
+
+    public class ParseFailureEventArgs : EventArgs
+    {
+        public ParseFailureEventArgs(IEnumerable<ParseFailureDetail> details) 
+        { 
+            if (null != details)
+            {
+                Details = details;
+            }
+            else
+            {
+                Details = __empty;
+            }
+        }
+
+        public readonly IEnumerable<ParseFailureDetail> Details;
+
+        private static readonly ParseFailureDetail[] __empty = new ParseFailureDetail[]{};
+    }
+
     public sealed class ImapClient : IDisposable
     {
         private readonly NetworkCredential _credentials;
@@ -33,6 +63,16 @@ namespace Stratosphere.Imap
 
         private long _nextCommandNumber;
         public long NextCommandNumber { get { return _nextCommandNumber; } }
+
+        public EventHandler<ParseFailureEventArgs> ParseFailures;
+
+        private void OnParseFailures(IEnumerable<ParseFailureDetail> details)
+        {
+            if (null != ParseFailures)
+            {
+                ParseFailures(this, new ParseFailureEventArgs(details));
+            }
+        }
 
         public ImapClient(string hostName, int portNumber, bool enableSsl, NetworkCredential credentials)
         {
@@ -228,18 +268,21 @@ namespace Stratosphere.Imap
 
             if (result.Status == SendReceiveStatus.OK)
             {
-                foreach (string line in result.Lines)
+                SafeEnumerateLines(result.Lines, (line) =>
                 {
                     ImapList list = ImapList.Parse(line);
 
                     if (list.GetStringAt(0) == "*" &&
                         list.GetStringAt(2) == "FETCH" &&
-                        list.IsStringAt(1) &&                        
+                        list.IsStringAt(1) &&
                         list.IsListAt(3))
                     {
                         uids.Add(long.Parse(list.GetListAt(3).GetStringAt(1)));
                     }
-                }
+
+                    return true;
+                });
+
             }
             else if (result.Status == SendReceiveStatus.Bad)
             {
@@ -256,6 +299,8 @@ namespace Stratosphere.Imap
 
         public IEnumerable<ImapMessage> FetchMessages(long beginUid, long endUid, ImapFetchOption option, IEnumerable<string> extensionParameterNames)
         {
+            List<KeyValuePair<Exception, string>> parseFailureLines = new List<KeyValuePair<Exception, string>>();
+
             List<ImapMessage> messages = new List<ImapMessage>();
             StringBuilder commandBuilder = new StringBuilder("UID FETCH ");
             commandBuilder.Append(FormatSequence(beginUid, endUid));
@@ -291,18 +336,20 @@ namespace Stratosphere.Imap
 
             if (result.Status == SendReceiveStatus.OK)
             {
-                foreach (string line in result.Lines)
+                SafeEnumerateLines(result.Lines, (line) =>
                 {
                     ImapList list = ImapList.Parse(line);
 
-                    if (list.GetStringAt(0) == "*" && 
+                    if (list.GetStringAt(0) == "*" &&
                         list.GetStringAt(2) == "FETCH" &&
                         list.IsStringAt(1) &&
                         list.IsListAt(3))
                     {
                         messages.Add(new ImapMessage(long.Parse(list.GetStringAt(1)), list.GetListAt(3), extensionParameterNames));
                     }
-                }
+
+                    return true;
+                });
             }
             else if (result.Status == SendReceiveStatus.Bad)
             {
@@ -339,6 +386,54 @@ namespace Stratosphere.Imap
             return FetchSection(uid, part, false);
         }
 
+        /// <summary>
+        /// Enumerates the lines, and if there is a handler specified for ParseFailures event, will
+        /// just accumulate failure details, skipping to next line.. then once all lines are processed,
+        /// fires the ParseFailures event with the details...   if no handler is registered, then 
+        /// any exception will be thrown as-is, enumeration will stop, and no event is fired.
+        /// </summary>
+        /// <param name="lines"></param>
+        /// <param name="iterationOperation"></param>
+        private void SafeEnumerateLines(IEnumerable<string> lines, Func<string, bool> iterationOperation)
+        {
+            if (null != lines)
+            {
+                List<ParseFailureDetail> failureDetails = null;
+                if (null != ParseFailures)
+                {
+                    failureDetails = new List<ParseFailureDetail>();
+                }
+
+                foreach (var line in lines)
+                {
+                    try
+                    {
+                        bool keepGoing = iterationOperation(line);
+                        if (!keepGoing)
+                        {
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (null == failureDetails)
+                        {
+                            throw;
+                        }
+                        else
+                        {
+                            failureDetails.Add(new ParseFailureDetail(ex, line));
+                        }
+                    }
+                }
+
+                if (null != failureDetails && failureDetails.Count > 0)
+                {
+                    OnParseFailures(failureDetails);
+                }
+            }
+        }
+
         public object FetchSection(long uid, ImapBodyPart part, bool peek)
         {
             SendReceiveResult result = SendReceive(string.Format("UID FETCH {0} BODY{1}[{2}]", 
@@ -351,8 +446,9 @@ namespace Stratosphere.Imap
                 ImapList sectionList = null;
                 string sectionLine = null;
 
-                foreach (string line in result.Lines)
-                {                   
+                SafeEnumerateLines(result.Lines, (line) =>
+                {
+                    bool keepGoing = true;
                     if (sectionList == null)
                     {
                         ImapList list = ImapList.Parse(line);
@@ -394,9 +490,12 @@ namespace Stratosphere.Imap
                             }
                         }
 
-                        break;
+                        keepGoing = false;
                     }
-                }
+
+                    return keepGoing;
+                });
+
             }
             else if (result.Status == SendReceiveStatus.Bad)
             {
@@ -497,6 +596,8 @@ namespace Stratosphere.Imap
 
         public void Dispose()
         {
+            ParseFailures = null;
+
             if (null != _reader)
             {
                 _reader.Dispose();
