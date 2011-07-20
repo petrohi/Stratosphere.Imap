@@ -553,7 +553,9 @@ namespace Stratosphere.Imap
 
                 if (string.IsNullOrEmpty(line))
                 {
-                    throw new IOException();
+                    //throw new IOException();
+                    // Let's just skip blank lines instead of throwing empty IOException..
+                    continue;
                 }
 
                 int begin;
