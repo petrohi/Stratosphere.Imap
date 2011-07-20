@@ -45,6 +45,8 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AssertEx.cs" />
+    <Compile Include="ImapClientTest.cs" />
     <Compile Include="ImapListTest.cs" />
     <Compile Include="RFC2047DecoderTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

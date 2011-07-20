@@ -537,26 +537,54 @@ namespace Stratosphere.Imap
 
         public SendReceiveResult SendReceive(string command)
         {
-            SendReceiveStatus status = SendReceiveStatus.OK;
-            List<string> lines = new List<string>();
-
             string commandId = string.Format("{0}", _nextCommandNumber++);
 
             _writer.Write("{0} {1}\r\n", commandId, command);
             _writer.Flush();
 
+            return ReadResponse(_reader, commandId);
+        }
+
+        public static readonly TimeSpan DefaultReadTimeout = TimeSpan.FromMinutes(2.0);
+        private TimeSpan _readTimeout = DefaultReadTimeout;
+        public TimeSpan ReadTimeout
+        {
+            get { return _readTimeout; }
+            set { _readTimeout = value; }
+        }
+
+        internal static SendReceiveResult ReadResponse(StreamReader reader, string commandId)
+        {
+            return ReadResponse(reader, commandId, DefaultReadTimeout);
+        }
+
+        internal static SendReceiveResult ReadResponse(StreamReader reader, string commandId, TimeSpan readTimeout)
+        {
+            DateTime startTime = DateTime.Now;
+
+            SendReceiveStatus status = SendReceiveStatus.OK;
+            List<string> lines = new List<string>();
+
             bool expectingLine = true;
 
             do
             {
-                string line = _reader.ReadLine();
+                string line = reader.ReadLine();
 
                 if (string.IsNullOrEmpty(line))
                 {
-                    //throw new IOException();
-                    // Let's just skip blank lines instead of throwing empty IOException..
-                    continue;
+                    if ( (DateTime.Now - startTime) > readTimeout )
+                    {
+                        throw new IOException(string.Format("Received empty responses from server for [{0}].  Aborting read attempt.", readTimeout.ToString()));
+                    }
+                    else
+                    {
+                        // Let's just skip blank lines instead of throwing empty IOException..
+                        continue;
+                    }
                 }
+                // Reset as we've gotten a line of data now.
+                startTime = DateTime.Now;
 
                 int begin;
 
@@ -568,7 +596,7 @@ namespace Stratosphere.Imap
                     {
                         char[] buffer = new char[length];
 
-                        _reader.ReadBlock(buffer, 0, length);
+                        reader.ReadBlock(buffer, 0, length);
 
                         lines.Add(line);
                         line = new string(buffer);
