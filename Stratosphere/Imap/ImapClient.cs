@@ -575,7 +575,7 @@ namespace Stratosphere.Imap
                 {
                     if ( (DateTime.Now - startTime) > readTimeout )
                     {
-                        throw new IOException(string.Format("Received empty responses from server for [{0}].  Aborting read attempt.", readTimeout.ToString()));
+                        throw new IOException(string.Format("Received empty responses from server longer than [{0}].  Aborting read attempt.", readTimeout.ToString()));
                     }
                     else
                     {
@@ -621,7 +621,97 @@ namespace Stratosphere.Imap
             }
             while (expectingLine);
 
-            return new SendReceiveResult(status, lines);
+            var combinedLines = CombineSplitLines(commandId, lines);
+
+            return new SendReceiveResult(status, combinedLines);
+        }
+
+        internal static IEnumerable<string> CombineSplitLines(string commandId, IEnumerable<string> lines)
+        {
+            List<string> result = new List<string>();
+            StringBuilder accumulatedLine = new StringBuilder();
+            bool isQuoted = false;
+            int nonQuotedOpenBraceCount = 0;
+            int nonQuotedCloseBraceCount = 0;
+
+            foreach (var line in lines)
+            {
+                if (!IsLineBalanced(isQuoted, nonQuotedOpenBraceCount, nonQuotedCloseBraceCount))
+                {
+                    accumulatedLine.Append(line);
+                }
+                else
+                {
+                    if (IsLineNonProtocolPrefix(line, commandId))
+                    {
+                        accumulatedLine.Append(line);
+                    }
+                    else
+                    {
+                        string accumulated = accumulatedLine.ToString();
+                        if (!string.IsNullOrEmpty(accumulated))
+                        {
+                            result.Add(accumulated);
+                        }
+                        isQuoted = false;
+                        nonQuotedOpenBraceCount = 0;
+                        nonQuotedCloseBraceCount = 0;
+
+                        accumulatedLine = new StringBuilder(line);
+                    }
+                }
+
+                UpdateLineCounters(line, ref isQuoted, ref nonQuotedOpenBraceCount, ref nonQuotedCloseBraceCount);
+            }
+
+            string finalAccumulated = accumulatedLine.ToString();
+            if (!string.IsNullOrEmpty(finalAccumulated))
+            {
+                result.Add(finalAccumulated);
+            }
+
+            return result;
+        }
+
+        private static bool IsLineBalanced(bool isQuoted, int nonQuotedOpenBraceCount, int nonQuotedCloseBraceCount)
+        {
+            return (nonQuotedCloseBraceCount == nonQuotedOpenBraceCount && !isQuoted);
+        }
+
+        private static bool IsLineNonProtocolPrefix(string line, string commandId)
+        {
+            return !line.StartsWith("*") && !line.StartsWith("+") && !line.StartsWith(commandId);
+        }
+
+        private static void UpdateLineCounters(string line, ref bool isQuoted, ref int accumulatedOpenBraceCount, ref int accumulatedCloseBraceCount)
+        {
+            foreach (char c in line)
+            {
+                switch (c)
+                {
+                    case '\"':
+                        isQuoted = !isQuoted;
+                        break;
+
+                    case '(':
+                        if (!isQuoted)
+                        {
+                            ++accumulatedOpenBraceCount;
+                        }
+                        break;
+
+                    case ')':
+                        if (!isQuoted)
+                        {
+                            ++accumulatedCloseBraceCount;
+                        }
+                        break;
+
+                    default:
+                        // Ignore any other characters.
+                        break;
+                }
+            }
         }
 
         public void Dispose()

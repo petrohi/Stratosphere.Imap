@@ -29,7 +29,7 @@ namespace Stratosphere.Imap.Test
         {
             var data = new string[] {
                 "* CAPABILITY IMAP4rev1 STARTTLS AUTH=GSSAPI LOGINDISABLED",
-                DefaultCommandId + " OK CAPABILITY completed"};
+                FinishingLine(DefaultCommandId)};
 
             using (var reader = CreateStreamReaderFor(data))
             {
@@ -39,7 +39,123 @@ namespace Stratosphere.Imap.Test
             }
         }
 
+        [TestMethod]
+        public void ReadResponse_SplitLines_Basic()
+        {
+            var splitParts = new string[] {
+                "* CAPABILITY IMAP4rev1 STARTTLS ",
+                "AUTH=GSSAPI LOGINDISABLED",
+            };
 
+            var data = Combine<string>(
+                    splitParts,
+                    FinishingLine(DefaultCommandId)).ToArray();
+
+            using (var reader = CreateStreamReaderFor(data))
+            {
+                var result = ImapClient.ReadResponse(reader, DefaultCommandId, DefaultReadTimeout);
+                Assert.AreEqual(ImapClient.SendReceiveStatus.OK, result.Status);
+                Assert.AreEqual(string.Join(string.Empty, splitParts), result.Lines.First());
+            }
+        }
+
+        [TestMethod]
+        public void ReadResponse_SplitLines_QuotedString_ProtocolPrefix_CommandId()
+        {
+            var splitParts = new string[] {
+                "* CAPABILITY IMAP4rev1 STARTTLS \"Some quoted ",
+                DefaultCommandId + " string with internal match of protocol prefix\" ",
+                "AUTH=GSSAPI LOGINDISABLED",
+            };
+
+            var data = Combine<string>(
+                    splitParts,
+                    FinishingLine(DefaultCommandId)).ToArray();
+
+            using (var reader = CreateStreamReaderFor(data))
+            {
+                var result = ImapClient.ReadResponse(reader, DefaultCommandId, DefaultReadTimeout);
+                Assert.AreEqual(ImapClient.SendReceiveStatus.OK, result.Status);
+                Assert.AreEqual(string.Join(string.Empty, splitParts), result.Lines.First());
+            }
+        }
+
+        [TestMethod]
+        public void ReadResponse_SplitLines_QuotedString_UnbalancedBracesInsideQuotes()
+        {
+            var splitParts = new string[] {
+                "* CAPABILITY (IMAP4rev1 STARTTLS \"Some quoted ",
+                " string with) internal (match) of )protocol prefix\" ",
+                "AUTH=GSSAPI) LOGINDISABLED",
+            };
+
+            var data = Combine<string>(
+                    splitParts,
+                    FinishingLine(DefaultCommandId)).ToArray();
+
+            using (var reader = CreateStreamReaderFor(data))
+            {
+                var result = ImapClient.ReadResponse(reader, DefaultCommandId, DefaultReadTimeout);
+                Assert.AreEqual(ImapClient.SendReceiveStatus.OK, result.Status);
+                Assert.AreEqual(string.Join(string.Empty, splitParts), result.Lines.First());
+            }
+        }
+
+        [TestMethod]
+        public void ReadResponse_SplitLines_UnbalancedBraces_ProtocolPrefix_Asterisk()
+        {
+            var splitParts = new string[] {
+                "* CAPABILITY (IMAP4rev1 STARTTLS (JIGGY ",
+                "+" + " WIGGY) WAGGA WAGGA (ANOTHER OPEN ",
+                "AUTH=GSSAPI) LOGINDISABLED) DONE",
+            };
+
+            var data = Combine<string>(
+                    splitParts, 
+                    "*" + " ANOTHER LINE",
+                    FinishingLine(DefaultCommandId)).ToArray();
+                
+            using (var reader = CreateStreamReaderFor(data))
+            {
+                var result = ImapClient.ReadResponse(reader, DefaultCommandId, DefaultReadTimeout);
+                Assert.AreEqual(ImapClient.SendReceiveStatus.OK, result.Status);
+                Assert.AreEqual(string.Join(string.Empty, splitParts), result.Lines.First());
+            }
+        }
+
+        private static string FinishingLine(string cmdId)
+        {
+            return cmdId + " OK Finishing Line here...";
+        }
+
+        private static IEnumerable<T> Combine<T>(params object[] args)
+        {
+            List<T> combined = new List<T>();
+
+            for (int i=0; i < args.Length; ++i)
+            {
+                object arg = args[i];
+                if (arg is T)
+                {
+                    T value = (T)arg;
+                    combined.Add(value);
+                }
+                else if (arg is IEnumerable<T>)
+                {
+                    IEnumerable<T> values = (IEnumerable<T>)arg;
+                    combined.AddRange(values);
+                }
+                else
+                {
+                    string badArg = string.Format("args[{0}]", i);
+
+                    throw new ArgumentException(string.Format("{0} ({1}) is not of type {2} or IEnumerable<{2}>",
+                        badArg, arg.ToString(), typeof(T)), badArg);
+                }
+            }
+
+            return combined;
+        }
 
         private StreamReader CreateStreamReaderFor(string[] data)
         {

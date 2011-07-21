@@ -94,45 +94,6 @@ namespace Stratosphere.Imap
             }
         }
 
-        private void ORIG_PARSE(IEnumerator<char> chars)
-        {
-            StringBuilder builder = new StringBuilder();
-            bool isInQuotes = false;
-
-            while (chars.MoveNext())
-            {
-                if (chars.Current == '\"')
-                {
-                    isInQuotes = !isInQuotes;
-                }
-                else if (chars.Current == ' ' && !isInQuotes)
-                {
-                    if (builder.Length > 0)
-                    {
-                        AddString(builder.ToString());
-                        builder = new StringBuilder();
-                    }
-                }
-                else if (chars.Current == '(' && !isInQuotes)
-                {
-                    _list.Add(new ImapList(chars));
-                }
-                else if (chars.Current == ')' && !isInQuotes)
-                {
-                    break;
-                }
-                else
-                {
-                    builder.Append(chars.Current);
-                }
-            }
-
-            if (builder.Length > 0)
-            {
-                AddString(builder.ToString());
-            }
-        }
-
         private void AddString(string s)
         {
             if (s == "NIL")
