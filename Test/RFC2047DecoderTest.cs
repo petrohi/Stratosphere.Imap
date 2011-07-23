@@ -100,11 +100,42 @@ namespace Stratosphere.Imap.Test
             VerifyDecoding(Encoded, Expected);
         }
 
+        /*
+        [TestMethod]
+        public void RealWorldData_4_UnderscoresInSurroundingTextPreserved()
+        {
+            const string Encoded = "=?WINDOWS-1252?Q?Gmail=92s_=91People_Widget=92?= _Here are _ some underscores =?WINDOWS-1252?Q?_No_Browser_Plugin_Required?=";
+            const string Expected = "Gmail’s ‘People Widget’ _Here are _ some underscores No Browser Plugin Required";
+
+            VerifyDecoding(Encoded, Expected);
+        }
+        */
+
         [TestMethod]
         public void ParseQuotedPrintable_Basic()
         {
             const string Encoded = "Another test...  ?=3D  =2C   =3B   =3D   =3D=3D    =3D2C";
             const string Expected = "Another test...  ?=  ,   ;   =   ==    =2C";
+
+            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
+            Assert.AreEqual(Expected, decoded);
+        }
+
+        [TestMethod]
+        public void ParseQuotedPrintable_LoneEquals_NewlineGetsStripped()
+        {
+            const string Encoded = "Another test...  =\r\nThis should not be on a new line.";
+            const string Expected = "Another test...  This should not be on a new line.";
+
+            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
+            Assert.AreEqual(Expected, decoded);
+        }
+
+        [TestMethod]
+        public void ParseQuotedPrintable_LoneEquals_NonNewlinePreserved()
+        {
+            const string Encoded = "Another test...  =This should not be on a new line.";
+            const string Expected = "Another test...  This should not be on a new line.";
 
             var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
             Assert.AreEqual(Expected, decoded);

@@ -111,15 +111,32 @@ namespace Stratosphere.Imap.Test
             };
 
             var data = Combine<string>(
-                    splitParts, 
+                    splitParts,
                     "*" + " ANOTHER LINE",
                     FinishingLine(DefaultCommandId)).ToArray();
-                
+
             using (var reader = CreateStreamReaderFor(data))
             {
                 var result = ImapClient.ReadResponse(reader, DefaultCommandId, DefaultReadTimeout);
                 Assert.AreEqual(ImapClient.SendReceiveStatus.OK, result.Status);
                 Assert.AreEqual(string.Join(string.Empty, splitParts), result.Lines.First());
+            }
+        }
+
+        [TestMethod]
+        public void ReadResponse_SplitLines_KeepLiteralsOnOwnLine()
+        {
+            var data = Combine<string>(
+                    "* 34 FETCH (UID 54 BODY[1] {10}",
+                    "0123456789",
+                    ")",
+                    FinishingLine(DefaultCommandId)).ToArray();
+
+            using (var reader = CreateStreamReaderFor(data))
+            {
+                var result = ImapClient.ReadResponse(reader, DefaultCommandId, DefaultReadTimeout);
+                Assert.AreEqual(ImapClient.SendReceiveStatus.OK, result.Status);
+                AssertEx.SameContents(data, result.Lines);
             }
         }
 

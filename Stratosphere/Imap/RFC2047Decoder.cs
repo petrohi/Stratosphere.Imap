@@ -76,7 +76,7 @@ namespace Stratosphere.Imap
 
                 if (readingWord)
                 {
-                    currentWord.Append(currentChar);
+                    currentWord.Append( ('_' == currentChar) ? ' ' : currentChar );
                     i++;
                 }
                 else
@@ -153,16 +153,34 @@ namespace Stratosphere.Imap
                             break;
                         }
 
-                        try
+                        int skipNewLineCount = 0;
+                        foreach (char c in peekAhead)
                         {
-                            string decodedChar = enc.GetString(new byte[] { Convert.ToByte(new string(peekAhead, 0, 2), 16) });
-                            sb.Append(decodedChar);
-                            i += 3;
+                            if ('\r' == c || '\n' == c)
+                            {
+                                ++skipNewLineCount;
+                            }
                         }
-                        catch (Exception)
+
+                        if (skipNewLineCount > 0)
                         {
-                            // could not parse the peek-ahead chars as a hex number... so gobble the un-encoded '='
-                            i += 1;
+                            // If we have a lone equals followed by newline chars, then this is an artificial
+                            // line break that should be skipped past.
+                            i += 1 + skipNewLineCount;
+                        }
+                        else
+                        {
+                            try
+                            {
+                                string decodedChar = enc.GetString(new byte[] { Convert.ToByte(new string(peekAhead, 0, 2), 16) });
+                                sb.Append(decodedChar);
+                                i += 3;
+                            }
+                            catch (Exception)
+                            {
+                                // could not parse the peek-ahead chars as a hex number... so gobble the un-encoded '='
+                                i += 1;
+                            }
                         }
                         break;
                     case '?':
@@ -175,10 +193,6 @@ namespace Stratosphere.Imap
                             sb.Append('?');
                             i++;
                         }
-                        break;
-                    case '_':
-                        sb.Append(' ');
-                        i++;
                         break;
                     default:
                         sb.Append(currentChar);

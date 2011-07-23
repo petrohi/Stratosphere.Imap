@@ -586,9 +586,9 @@ namespace Stratosphere.Imap
                 // Reset as we've gotten a line of data now.
                 startTime = DateTime.Now;
 
-                int begin;
+                int begin = -1;
 
-                if (line.Length != 0 && line[line.Length - 1] == '}' && (begin = line.LastIndexOf('{')) != -1)
+                if (IsLiteralSignalLine(line, out begin))
                 {
                     int length;
 
@@ -626,17 +626,38 @@ namespace Stratosphere.Imap
             return new SendReceiveResult(status, combinedLines);
         }
 
+        private static bool IsLiteralSignalLine(string line)
+        {
+            int dummy = -1; ;
+            return IsLiteralSignalLine(line, out dummy);
+        }
+
+        private static bool IsLiteralSignalLine(string line, out int begin)
+        {
+            begin = -1;
+            return (line.Length != 0 && line[line.Length - 1] == '}' && (begin = line.LastIndexOf('{')) != -1);
+        }
+
         internal static IEnumerable<string> CombineSplitLines(string commandId, IEnumerable<string> lines)
         {
             List<string> result = new List<string>();
             StringBuilder accumulatedLine = new StringBuilder();
             bool isQuoted = false;
+            bool isLiteralSignaled = false;
             int nonQuotedOpenBraceCount = 0;
             int nonQuotedCloseBraceCount = 0;
 
             foreach (var line in lines)
             {
-                if (!IsLineBalanced(isQuoted, nonQuotedOpenBraceCount, nonQuotedCloseBraceCount))
+                if (isLiteralSignaled)
+                {
+                    result.Add(accumulatedLine.ToString());
+                    result.Add(line);
+                    accumulatedLine = new StringBuilder();
+                    isLiteralSignaled = false;
+                    continue;
+                }
+                else if (!IsLineBalanced(isQuoted, nonQuotedOpenBraceCount, nonQuotedCloseBraceCount))
                 {
                     accumulatedLine.Append(line);
                 }
@@ -660,6 +681,8 @@ namespace Stratosphere.Imap
                         accumulatedLine = new StringBuilder(line);
                     }
                 }
+
+                isLiteralSignaled = IsLiteralSignalLine(line);
 
                 UpdateLineCounters(line, ref isQuoted, ref nonQuotedOpenBraceCount, ref nonQuotedCloseBraceCount);
             }
