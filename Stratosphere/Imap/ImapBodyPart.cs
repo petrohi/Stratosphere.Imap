@@ -2,6 +2,7 @@
 
 using System.Net.Mime;
 using System.Text;
+using System;
 
 namespace Stratosphere.Imap
 {
@@ -37,6 +38,11 @@ namespace Stratosphere.Imap
             if (int.TryParse(list.GetStringAt(6), out size))
             {
                 Size = size;
+            }
+
+            if (string.IsNullOrEmpty(ContentType.CharSet))
+            {
+                ContentType.CharSet = ASCIIEncoding.ASCII.BodyName;
             }
         }
 

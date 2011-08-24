@@ -488,6 +488,11 @@ namespace Stratosphere.Imap
                             {
                                 bytes = Encoding.ASCII.GetBytes(sectionLine);
                             }
+                            else if (
+                                part.Encoding.Equals("BINARY", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                bytes = Encoding.ASCII.GetBytes(sectionLine);
+                            }
                         }
 
                         keepGoing = false;
