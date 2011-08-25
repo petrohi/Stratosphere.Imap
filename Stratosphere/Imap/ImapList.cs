@@ -102,7 +102,7 @@ namespace Stratosphere.Imap
             }
             else
             {
-                _list.Add(RFC2047Decoder.Parse(s));
+                _list.Add(s);
             }
         }
 

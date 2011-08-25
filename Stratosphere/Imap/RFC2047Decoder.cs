@@ -172,6 +172,8 @@ namespace Stratosphere.Imap
                         {
                             try
                             {
+                                // TODO:  Have to gather "runs" of continuous hex chars into corresponding bytes, then 
+                                // use the encoding to decode them.
                                 string decodedChar = enc.GetString(new byte[] { Convert.ToByte(new string(peekAhead, 0, 2), 16) });
                                 sb.Append(decodedChar);
                                 i += 3;

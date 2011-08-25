@@ -440,6 +440,19 @@ namespace Stratosphere.Imap
                 uid, peek ? ".PEEK" : string.Empty, part.Section));
 
             byte[] bytes = null;
+            Encoding enc = null;
+            try
+            {
+                enc = Encoding.GetEncoding(part.ContentType.CharSet.Trim(new char[] { '"' }));
+            }
+            catch (ArgumentException) { }
+
+            if (null == enc)
+            {
+                // Fall back on ASCII if we have any trouble getting the encoding for
+                // specified character set.
+                enc = ASCIIEncoding.ASCII;
+            }
 
             if (result.Status == SendReceiveStatus.OK)
             {
@@ -486,7 +499,8 @@ namespace Stratosphere.Imap
                             else if (
                                 part.Encoding.Equals("QUOTED-PRINTABLE", StringComparison.InvariantCultureIgnoreCase))
                             {
-                                bytes = Encoding.ASCII.GetBytes(sectionLine);
+                                var qpDecoded = RFC2047Decoder.ParseQuotedPrintable(enc, sectionLine);
+                                bytes = enc.GetBytes(qpDecoded);
                             }
                             else if (
                                 part.Encoding.Equals("BINARY", StringComparison.InvariantCultureIgnoreCase))
@@ -511,9 +525,8 @@ namespace Stratosphere.Imap
             {
                 try
                 {
-                    Encoding enc = Encoding.GetEncoding(part.ContentType.CharSet.Trim(new char[] { '"' }));
                     string intermediate = enc.GetString(bytes);
-                    return RFC2047Decoder.ParseQuotedPrintable(enc, intermediate);
+                    return intermediate;
                 }
                 catch (ArgumentException) { }
             }

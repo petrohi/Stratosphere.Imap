@@ -56,7 +56,7 @@ namespace Stratosphere.Imap
                     Timestamp = timestamp;
                 }
 
-                Subject = envelopeList.GetStringAt(1);
+                Subject = RFC2047Decoder.Parse(envelopeList.GetStringAt(1));
                 Sender = ParseAddresses(envelopeList.GetListAt(2)).FirstOrDefault();
                 From = ParseAddresses(envelopeList.GetListAt(3)).FirstOrDefault();
                 ReplyTo = ParseAddresses(envelopeList.GetListAt(4)).FirstOrDefault();
