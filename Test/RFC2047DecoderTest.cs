@@ -141,6 +141,16 @@ namespace Stratosphere.Imap.Test
             Assert.AreEqual(Expected, decoded);
         }
 
+        [TestMethod]
+        public void ParseQuotedPrintable_UTF8_MultibyteCharacters()
+        {
+            const string Encoded = "We=E2=80=99re";
+            const string Expected = "We\u2019re";
+
+            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
+            Assert.AreEqual(Expected, decoded);
+        }
+
         private static void VerifyDecoding(string encoded, string expectedDecoded)
         {
             var decoded = RFC2047Decoder.Parse(encoded);
