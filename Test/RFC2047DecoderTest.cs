@@ -109,16 +109,23 @@ namespace Stratosphere.Imap.Test
             VerifyDecoding(Encoded, Expected);
         }
 
-        /*
         [TestMethod]
-        public void RealWorldData_5_UnderscoresInSurroundingTextPreserved()
+        public void RealWorldData_5_WhitespaceBorderingSurroundingTextIsPreserved()
         {
-            const string Encoded = "=?WINDOWS-1252?Q?Gmail=92s_=91People_Widget=92?= _Here are _ some underscores =?WINDOWS-1252?Q?_No_Browser_Plugin_Required?=";
-            const string Expected = "Gmail’s ‘People Widget’ _Here are _ some underscores No Browser Plugin Required";
+            const string Encoded = "=?ISO-8859-1?Q?a?= some  surrounding\t\r\n =?ISO-8859-1?Q?=2C?= =?ISO-8859-2?Q?_b?= =?ISO-8859-1?Q?=3B=3D?= =?ISO-8859-2?Q?_c?=";
+            const string Expected = "a some  surrounding\t\r\n , b;= c";
 
             VerifyDecoding(Encoded, Expected);
         }
-        */
+
+        [TestMethod]
+        public void RealWorldData_6_UnderscoresInSurroundingTextPreserved()
+        {
+            const string Encoded = "=?WINDOWS-1252?Q?Gmail=92s_=91People_Widget=92?= _Here are _ some underscores =?WINDOWS-1252?Q?_No_Browser_Plugin_Required?=";
+            const string Expected = "Gmail’s ‘People Widget’ _Here are _ some underscores  No Browser Plugin Required";
+
+            VerifyDecoding(Encoded, Expected);
+        }
 
         [TestMethod]
         public void ParseQuotedPrintable_Basic()
