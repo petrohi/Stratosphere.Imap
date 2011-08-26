@@ -103,7 +103,11 @@ namespace Stratosphere.Imap
 
             // Get the name of the encoding but skip the leading =?
             string encodingName = input.Substring(2, input.IndexOf("?", 2) - 2);
-            Encoding enc = Encoding.GetEncoding(encodingName);
+            Encoding enc = ASCIIEncoding.ASCII;
+            if (!string.IsNullOrEmpty(encodingName))
+            {
+                enc = Encoding.GetEncoding(encodingName);
+            }
 
             // Get the type of the encoding
             char type = input[encodingName.Length + 3];
@@ -222,81 +226,6 @@ namespace Stratosphere.Imap
             }
 
             return output;
-        }
-
-        public static string DEPRECATED_ParseQuotedPrintable(Encoding enc, string input, int startPos, bool skipQuestionEquals)
-        {
-            StringBuilder sb = new StringBuilder(input.Length);
-
-            int i = startPos;
-
-            while (i < input.Length)
-            {
-                char currentChar = input[i];
-                char[] peekAhead = new char[2];
-                switch (currentChar)
-                {
-                    case '=':
-                        peekAhead = (i >= input.Length - 2) ? null : new char[] { input[i + 1], input[i + 2] };
-
-                        if (peekAhead == null)
-                        {
-                            sb.Append(currentChar);
-                            i++;
-                            break;
-                        }
-
-                        int skipNewLineCount = 0;
-                        foreach (char c in peekAhead)
-                        {
-                            if ('\r' == c || '\n' == c)
-                            {
-                                ++skipNewLineCount;
-                            }
-                        }
-
-                        if (skipNewLineCount > 0)
-                        {
-                            // If we have a lone equals followed by newline chars, then this is an artificial
-                            // line break that should be skipped past.
-                            i += 1 + skipNewLineCount;
-                        }
-                        else
-                        {
-                            try
-                            {
-                                // TODO:  Have to gather "runs" of continuous hex chars into corresponding bytes, then 
-                                // use the encoding to decode them.
-                                string decodedChar = enc.GetString(new byte[] { Convert.ToByte(new string(peekAhead, 0, 2), 16) });
-                                sb.Append(decodedChar);
-                                i += 3;
-                            }
-                            catch (Exception)
-                            {
-                                // could not parse the peek-ahead chars as a hex number... so gobble the un-encoded '='
-                                i += 1;
-                            }
-                        }
-                        break;
-                    case '?':
-                        if (skipQuestionEquals && input[i + 1] == '=')
-                        {
-                            i += 2;
-                        }
-                        else
-                        {
-                            sb.Append('?');
-                            i++;
-                        }
-                        break;
-                    default:
-                        sb.Append(currentChar);
-                        i++;
-                        break;
-                }
-            }
-
-            return sb.ToString();
         }
     }
 }
