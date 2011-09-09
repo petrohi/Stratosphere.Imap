@@ -147,10 +147,10 @@ namespace Stratosphere.Imap
             for (int i = 0; i < list.Count; i++)
             {
                 ImapList addressList = list.GetListAt(i);
-                
-                string displayName = addressList.GetStringAt(0);
-                string user = addressList.GetStringAt(2);
-                string host = addressList.GetStringAt(3);
+
+                string displayName = RFC2047Decoder.Parse(addressList.GetStringAt(0));
+                string user = RFC2047Decoder.Parse(addressList.GetStringAt(2));
+                string host = RFC2047Decoder.Parse(addressList.GetStringAt(3));
                 
                 if (!string.IsNullOrEmpty(user) &&
                     !string.IsNullOrEmpty(host))
