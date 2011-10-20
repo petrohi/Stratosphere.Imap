@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Globalization;
+using System.Linq;
 
 namespace Stratosphere.Imap
 {
@@ -66,15 +67,15 @@ namespace Stratosphere.Imap
                     switch (currentByte)
                     {
                         case (byte)'=':
-                            ParseQuotedPrintableEqualsCharacter(outputStream);
+                            ParseConsecutiveEncodedBytes(outputStream);
                             break;
 
                         case (byte)'?':
-                            ParseQuotedPrintableQuestionMarkCharacter(outputStream);
+                            ParseQuestionMarkCharacter(outputStream);
                             break;
 
                         default:
-                            ParseQuotedPrintableCopyNextByteToOutput(outputStream);
+                            CopyNextByteToOutput(outputStream);
                             break;
                     }
                 }
@@ -83,22 +84,66 @@ namespace Stratosphere.Imap
             }
         }
 
-        private void ParseQuotedPrintableEqualsCharacter(MemoryStream outputStream)
+        private void ParseConsecutiveEncodedBytes(MemoryStream outputStream)
         {
+            List<byte> consecutiveEncodedBytes = new List<byte>();
+
+            bool isEncodedByte = true;
+
+            do
+            {
+                byte nextByte;
+                isEncodedByte = ParseNextEncodedByte(out nextByte);
+
+                if (isEncodedByte)
+                {
+                    consecutiveEncodedBytes.Add(nextByte);
+                }
+                else
+                {
+                    // We've gathered the consecutive decoded bytes... apply any post-processing
+                    // before copying to output.
+                    var postProcessedEncodedBytes = PostProcessEncodedBytes(consecutiveEncodedBytes);
+                    outputStream.Write(postProcessedEncodedBytes, 0, postProcessedEncodedBytes.Length);
+                }
+            }
+            while (isEncodedByte);
+        }
+
+        private byte[] PostProcessEncodedBytes(IEnumerable<byte> consecutiveEncodedBytes)
+        {
+            // TODO:  Apply any post-processing necessary...
+            return consecutiveEncodedBytes.ToArray();
+        }
+
+        private bool ParseNextEncodedByte(out byte nextByte)
+        {
+            bool isEncodedByte = true;
+
             bool canPeekAhead = (_inputPos < _inputBytes.Length - 2);
 
-            if (!canPeekAhead)
+            if (!canPeekAhead || !IsCurrentCharAnEqualsSign())
             {
-                ParseQuotedPrintableCopyNextByteToOutput(outputStream);
+                nextByte = default(byte);
+                isEncodedByte = false;
             }
             else
             {
-                ParseQuotedPrintableCandidateEncodedByte(outputStream);
+                isEncodedByte = TryParseCandidateEncodedByte(out nextByte);
             }
+
+            return isEncodedByte;
         }
 
-        private void ParseQuotedPrintableCandidateEncodedByte(MemoryStream outputStream)
+        private bool IsCurrentCharAnEqualsSign()
         {
+            return ('=' == (char)_inputBytes[_inputPos]);
+        }
+
+        private bool TryParseCandidateEncodedByte(out byte nextByte)
+        {
+            bool isEncodedByte = false;
+
             int skipNewLineCount = 0;
             for (int j = 0; j < 2; ++j)
             {
@@ -111,18 +156,23 @@ namespace Stratosphere.Imap
 
             if (skipNewLineCount > 0)
             {
+                nextByte = default(byte);
                 // If we have a lone equals followed by newline chars, then this is an artificial
                 // line break that should be skipped past.
                 _inputPos += 1 + skipNewLineCount;
             }
             else
             {
-                ParseQuotedPrintableEncodedByte(outputStream);
+                isEncodedByte = TryParseEncodedByte(out nextByte);
             }
+
+            return isEncodedByte;
         }
 
-        private void ParseQuotedPrintableEncodedByte(MemoryStream outputStream)
+        private bool TryParseEncodedByte(out byte nextByte)
         {
+            bool isEncodedByte = false;
+
             try
             {
                 char[] peekAhead = new char[2];
@@ -131,24 +181,29 @@ namespace Stratosphere.Imap
                 peekAhead[1] = (char)_inputBytes[_inputPos + 2];
 
                 byte decodedByte = Convert.ToByte(new string(peekAhead, 0, 2), 16);
-                outputStream.WriteByte(decodedByte);
+                nextByte = decodedByte;
 
                 _inputPos += 3;
+
+                isEncodedByte = true;
             }
             catch (Exception)
             {
+                nextByte = default(byte);
                 // could not parse the peek-ahead chars as a hex number... so gobble the un-encoded '='
                 _inputPos += 1;
             }
+
+            return isEncodedByte;
         }
 
-        private void ParseQuotedPrintableCopyNextByteToOutput(MemoryStream outputStream)
+        private void CopyNextByteToOutput(MemoryStream outputStream)
         {
             outputStream.WriteByte(_inputBytes[_inputPos]);
             ++_inputPos;
         }
 
-        private void ParseQuotedPrintableQuestionMarkCharacter(MemoryStream outputStream)
+        private void ParseQuestionMarkCharacter(MemoryStream outputStream)
         {
             if (_skipQuestionEquals && _inputBytes[_inputPos + 1] == (byte)'=')
             {
