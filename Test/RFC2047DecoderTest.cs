@@ -127,46 +127,6 @@ namespace Stratosphere.Imap.Test
             VerifyDecoding(Encoded, Expected);
         }
 
-        [TestMethod]
-        public void ParseQuotedPrintable_Basic()
-        {
-            const string Encoded = "Another test...  ?=3D  =2C   =3B   =3D   =3D=3D    =3D2C";
-            const string Expected = "Another test...  ?=  ,   ;   =   ==    =2C";
-
-            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
-            Assert.AreEqual(Expected, decoded);
-        }
-
-        [TestMethod]
-        public void ParseQuotedPrintable_LoneEquals_NewlineGetsStripped()
-        {
-            const string Encoded = "Another test...  =\r\nThis should not be on a new line.";
-            const string Expected = "Another test...  This should not be on a new line.";
-
-            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
-            Assert.AreEqual(Expected, decoded);
-        }
-
-        [TestMethod]
-        public void ParseQuotedPrintable_LoneEquals_NonNewlinePreserved()
-        {
-            const string Encoded = "Another test...  =This should not be on a new line.";
-            const string Expected = "Another test...  This should not be on a new line.";
-
-            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
-            Assert.AreEqual(Expected, decoded);
-        }
-
-        [TestMethod]
-        public void ParseQuotedPrintable_UTF8_MultibyteCharacters()
-        {
-            const string Encoded = "We=E2=80=99re";
-            const string Expected = "We\u2019re";
-
-            var decoded = RFC2047Decoder.ParseQuotedPrintable(Encoding.UTF8, Encoded);
-            Assert.AreEqual(Expected, decoded);
-        }
-
         private static void VerifyDecoding(string encoded, string expectedDecoded)
         {
             var decoded = RFC2047Decoder.Parse(encoded);

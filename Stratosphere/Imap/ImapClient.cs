@@ -499,8 +499,8 @@ namespace Stratosphere.Imap
                             else if (
                                 part.Encoding.Equals("QUOTED-PRINTABLE", StringComparison.InvariantCultureIgnoreCase))
                             {
-                                var qpDecoded = RFC2047Decoder.ParseQuotedPrintable(enc, sectionLine);
-                                bytes = enc.GetBytes(qpDecoded);
+                                var parser = new QuotedPrintableParser(sectionLine);
+                                bytes = parser.GetParsedBytes();
                             }
                             else if (
                                 part.Encoding.Equals("BINARY", StringComparison.InvariantCultureIgnoreCase))
