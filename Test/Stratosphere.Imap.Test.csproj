@@ -46,7 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssertEx.cs" />
-    <Compile Include="QuotedPrintableParserTest.cs" />
     <Compile Include="ImapMessageTest.cs" />
     <Compile Include="ImapClientTest.cs" />
     <Compile Include="ImapListTest.cs" />
